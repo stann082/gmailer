@@ -44,6 +44,3 @@ class ApiService:
             user_messages.append(tdata['payload'])
 
         return user_messages
-
-    def deliberately_unused_method(self):
-        pass
