@@ -14,13 +14,9 @@ class ApiService:
     # region Constructors
     def __init__(self):
         creds = None
-        # The file token.json stores the user's access and refresh tokens, and is
-        # created automatically when the authorization flow completes for the first
-        # time.
         if os.path.exists(TOKEN_FILE):
             creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
 
-        # If there are no (valid) credentials available, let the user log in.
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
                 creds.refresh(Request())
@@ -28,7 +24,6 @@ class ApiService:
                 flow = InstalledAppFlow.from_client_secrets_file(
                     CREDS_FILE, SCOPES)
                 creds = flow.run_local_server(port=0)
-            # Save the credentials for the next run
             with open(TOKEN_FILE, 'w') as token:
                 token.write(creds.to_json())
 
