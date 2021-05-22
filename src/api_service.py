@@ -4,6 +4,8 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 
+from src.user_message import UserMessage
+
 SCOPES = ['https://www.googleapis.com/auth/gmail.readonly']
 CREDS_FILE = 'etc/credentials.json'
 TOKEN_FILE = 'etc/token.json'
@@ -41,6 +43,6 @@ class ApiService:
         for message in messages:
             tdata = self.service.users().messages().get(
                 userId=user_id, id=message['id']).execute()
-            user_messages.append(tdata['payload'])
+            user_messages.append(UserMessage(tdata['id'], tdata['payload']))
 
         return user_messages

@@ -148,5 +148,10 @@ Thumbs.db #thumbnail cache on Windows
 # profiling data
 .prof
 
+# Custom
+.vscode
+
+etc/credentials.json
+etc/token.json
 
 # End of https://www.toptal.com/developers/gitignore/api/python

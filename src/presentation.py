@@ -18,27 +18,17 @@ class Presentation:
             for label in labels:
                 print(label['name'])
 
-    def show_messages(self, user_id='me'):
+    def show_messages(self):
         messages = self.service.get_messages()
         output = ""
 
         counter = 0
         for message in messages:
-            for header in message['headers']:
-                if header['name'] == 'Date':
-                    date_value = header['value']
-                if header['name'] == 'From':
-                    from_value = header['value']
-                if header['name'] == 'Subject':
-                    subject = header['value']
-                if header['name'] == 'To':
-                    to_value = header['value']
-
             counter += 1
             output += f"Email #{counter}\n"
-            output += f"Subject: {subject}\n"
-            output += f"Date: {date_value}\n"
-            output += f"From: {from_value}\n"
-            output += f"To: {to_value}\n\n"
+            output += f"Subject: {message.subject}\n"
+            output += f"Date: {message.date}\n"
+            output += f"From: {message.sender}\n"
+            output += f"To: {message.recepient}\n\n"
 
         print(output)
