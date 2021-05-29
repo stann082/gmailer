@@ -1,3 +1,4 @@
+import json
 import os.path
 import redis
 
@@ -17,7 +18,7 @@ TOKEN_FILE = 'etc/token.json'
 class ApiService:
 
     # region Constructors
-    def __init__(self):
+    def __init__(self, database=1):
         creds = None
         if os.path.exists(TOKEN_FILE):
             creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
@@ -35,17 +36,20 @@ class ApiService:
         self.api_service = build('gmail', 'v1', credentials=creds)
         self.filter_context = FilterContext()
 
-        self.redis_service = redis.Redis()
-        self.redis_service.flushdb()
+        self.redis_service = redis.Redis(db=database)
 
     # region Public Methods
     def cache_all_messages(self):
         for message in self.__get_messages():
             data = self.__get_message_data(message)
-            user_message = UserMessage(data)
+            user_message = UserMessage()
+            user_message.copyFrom(data)
             key = data['id']
             value = user_message.to_json()
             self.redis_service.set(key, value)
+
+    def clear(self):
+        self.redis_service.flushdb()
 
     def get_cached_messages(self):
         return self.redis_service.keys()
@@ -65,7 +69,27 @@ class ApiService:
                 userId=self.filter_context.user_id,
                 id=message['id']
             ).execute()
-            user_messages.append(UserMessage(data))
+
+            user_message = UserMessage()
+            user_message.copyFrom(data)
+            user_messages.append(user_message)
+
+        return user_messages
+
+    def search(self, query):
+        user_messages = []
+
+        keys = self.get_cached_messages()
+        if (len(keys) == 0):
+            print("Loading all the emails...")
+            self.cache_all_messages()
+
+        keys = self.get_cached_messages()
+        for key in keys:
+            value = self.redis_service.get(key)
+            user_message = UserMessage(value)
+            if user_message.matches(query):
+                user_messages.append(user_message)
 
         return user_messages
 

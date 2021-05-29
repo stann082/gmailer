@@ -9,6 +9,9 @@ class Presentation:
         self.service = ApiService()
 
     # region Public Methods
+    def clear(self):
+        self.service.clear()
+
     def show_labels(self):
         labels = self.service.get_labels()
         if not labels:
@@ -20,6 +23,15 @@ class Presentation:
 
     def show_messages(self):
         messages = self.service.get_messages()
+        output = self.__get_messages_output(messages)
+        print(output)
+
+    def search(self, query):
+        messages = self.service.search(query)
+        output = self.__get_messages_output(messages)
+        print(output)
+
+    def __get_messages_output(self, messages):
         output = ""
 
         counter = 0
@@ -33,4 +45,4 @@ class Presentation:
             output += f"To: {message.recepient}\n"
             output += f"Labels: {labels}\n\n"
 
-        print(output)
+        return output

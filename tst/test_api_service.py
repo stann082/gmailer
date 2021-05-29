@@ -4,8 +4,10 @@ from src.api_service import ApiService
 
 
 class ApiServiceTest(unittest.TestCase):
-    def setUp(self) -> None:
-        self.api_service = ApiService()
+    def setUp(self):
+        self.api_service = ApiService(0)
+        self.api_service.redis_service.flushdb()
+        self.api_service.filter_context.max_results = 5
 
     def test_cache_all_messages(self):
         # exercise
@@ -13,7 +15,7 @@ class ApiServiceTest(unittest.TestCase):
 
         # post-conditions
         messages = self.api_service.get_cached_messages()
-        self.assertEqual(10, len(messages))
+        self.assertEqual(5, len(messages))
 
     def test_get_labels(self):
         # exercise
@@ -27,7 +29,7 @@ class ApiServiceTest(unittest.TestCase):
         messages = self.api_service.get_messages()
 
         # post-conditions
-        self.assertEqual(10, len(messages))
+        self.assertEqual(5, len(messages))
         self.assertTrue(all('INBOX' in m.labels for m in messages))
         self.assertFalse(any('SENT' in m.labels for m in messages))
 
@@ -39,9 +41,19 @@ class ApiServiceTest(unittest.TestCase):
         messages = self.api_service.get_messages()
 
         # post-conditions
-        self.assertEqual(10, len(messages))
+        self.assertEqual(5, len(messages))
         self.assertTrue(all('SENT' in m.labels for m in messages))
         self.assertFalse(any('INBOX' in m.labels for m in messages))
+
+    def test_search(self):
+        # exercise
+        messages = self.api_service.search("opportunity")
+
+        # post-conditions
+        self.assertEqual(1, len(messages))
+
+    def tearDown(self):
+        self.api_service.redis_service.flushdb()
 
 
 if __name__ == '__main__':
