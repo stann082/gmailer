@@ -24,11 +24,13 @@ class Presentation:
 
         counter = 0
         for message in messages:
+            labels = ", ".join(message.labels)
             counter += 1
             output += f"Email #{counter}\n"
             output += f"Subject: {message.subject}\n"
             output += f"Date: {message.date}\n"
             output += f"From: {message.sender}\n"
-            output += f"To: {message.recepient}\n\n"
+            output += f"To: {message.recepient}\n"
+            output += f"Labels: {labels}\n\n"
 
         print(output)
