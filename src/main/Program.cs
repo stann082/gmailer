@@ -1,29 +1,22 @@
-﻿using service;
+﻿using Microsoft.Extensions.DependencyInjection;
+using service;
 
 namespace main;
 
-internal class Program
+public static class Program
 {
-    [STAThread]
-    private static void Main(string[] args)
+
+    #region Main Method
+
+    public static int Main(string[] args)
     {
-        try
-        {
-            new Program().Run().Wait();
-        }
-        catch (AggregateException ex)
-        {
-            foreach (var e in ex.InnerExceptions)
-            {
-                Console.WriteLine("ERROR: " + e.Message);
-            }
-        }
+        var services = new ServiceCollection()
+            .AddSingleton<App>()
+            .AddSingleton<IEmailService, EmailService>()
+            .BuildServiceProvider();
+        return services.GetService<App>()!.RunApp(args);
     }
 
-    private async Task Run()
-    {
-        EmailService service = new EmailService();
-        await service.GetEmails();
-    }
+    #endregion
 
 }

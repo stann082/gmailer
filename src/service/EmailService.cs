@@ -1,4 +1,5 @@
 ﻿using core;
+using core.cli;
 using Google.Apis.Auth.OAuth2;
 using Google.Apis.Gmail.v1;
 using Google.Apis.Services;
@@ -6,7 +7,7 @@ using Google.Apis.Util.Store;
 
 namespace service;
 
-public class EmailService
+public class EmailService : IEmailService
 {
 
     #region Constructors
@@ -31,10 +32,10 @@ public class EmailService
 
     #region Public Methods
 
-    public async Task GetEmails()
+    public async Task ListEmails(ListOptions options)
     {
         List<MessageBatch> messages = new List<MessageBatch>();
-        await LoadMessages(messages, "first");
+        await LoadMessages(messages, "first", options);
 
         List<Task<Email[]>> tasks = new List<Task<Email[]>>();
         Parallel.ForEach(messages, batch =>
@@ -111,7 +112,7 @@ public class EmailService
         return emails.ToArray();
     }
 
-    private async Task LoadMessages(ICollection<MessageBatch> messages, string pageToken)
+    private async Task LoadMessages(ICollection<MessageBatch> messages, string pageToken, ListOptions options)
     {
         if (string.IsNullOrEmpty(pageToken))
         {
@@ -119,9 +120,9 @@ public class EmailService
         }
 
         var emailListRequest = _service.Users.Messages.List("me");
-        emailListRequest.LabelIds = "INBOX";
+        emailListRequest.LabelIds = options.Label.ToUpper();
         emailListRequest.IncludeSpamTrash = false;
-        emailListRequest.MaxResults = 50;
+        emailListRequest.MaxResults = options.MaxResults;
         emailListRequest.PageToken = pageToken != "first" ? pageToken : null;
         //emailListRequest.Q = "is:unread"; // For unread emails
 
@@ -132,7 +133,7 @@ public class EmailService
         }
 
         messages.Add(new MessageBatch(response.Messages));
-        await LoadMessages(messages, response.NextPageToken);
+        await LoadMessages(messages, response.NextPageToken, options);
     }
 
     #endregion
