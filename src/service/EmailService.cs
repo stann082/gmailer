@@ -38,12 +38,9 @@ public class EmailService : IEmailService
         await LoadMessages(messages, "first", options);
 
         List<Task<Email[]>> tasks = new List<Task<Email[]>>();
-        Parallel.ForEach(messages, batch =>
-        {
-            tasks.Add(GetEmails(batch));
-        });
+        Parallel.ForEach(messages, batch => { tasks.Add(GetEmails(batch)); });
         var emailsTask = await Task.WhenAll(tasks.ToArray());
-        
+
         Email[] emails = emailsTask.SelectMany(t => t).ToArray();
         emails.DetermineDomains();
         var groupedEmails = emails
@@ -63,7 +60,7 @@ public class EmailService : IEmailService
             string output = $"{address} [{count}]";
             Console.WriteLine(output);
         }
-        
+
         Console.WriteLine($"Total emails: {emails.Length}");
     }
 
@@ -96,7 +93,7 @@ public class EmailService : IEmailService
     private async Task<Email[]> GetEmails(MessageBatch batch)
     {
         List<Email> emails = new List<Email>();
-        
+
         foreach (var id in batch.MessageIds)
         {
             var request = _service.Users.Messages.Get("me", id);
@@ -120,11 +117,15 @@ public class EmailService : IEmailService
         }
 
         var emailListRequest = _service.Users.Messages.List("me");
-        emailListRequest.LabelIds = options.Label.ToUpper();
+        emailListRequest.LabelIds = options.Label?.ToUpper();
         emailListRequest.IncludeSpamTrash = false;
         emailListRequest.MaxResults = options.MaxResults;
         emailListRequest.PageToken = pageToken != "first" ? pageToken : null;
-        //emailListRequest.Q = "is:unread"; // For unread emails
+
+        if (options.Unread)
+        {
+            emailListRequest.Q = "is:unread";
+        }
 
         var response = await emailListRequest.ExecuteAsync();
         if (response?.Messages == null)
