@@ -7,8 +7,9 @@ public class Email
 
     #region Constructors
 
-    public Email(IEnumerable<MessagePartHeader> headers)
+    public Email(IEnumerable<MessagePartHeader> headers, string id)
     {
+        Id = id;
         Initialize(headers);
     }
 
@@ -16,9 +17,14 @@ public class Email
 
     #region Properties
 
-    public string? Date { get; set; }
-    public string? From { get; set; }
-    public string? Subject { get; set; }
+    public string? Address { get; private set; }
+    public string? Date { get; private set; }
+    public string? Domain { get; set; }
+
+    public string? Id { get; private set; }
+    public string? Name { get; private set; }
+    public string? Sender { get; private set; }
+    public string? Subject { get; private set; }
 
     #endregion
 
@@ -34,13 +40,34 @@ public class Email
                     Date = header.Value;
                     break;
                 case "From":
-                    From = header.Value;
+                    Sender = header.Value;
+                    SetSenderProperties(Sender);
                     break;
                 case "Subject":
                     Subject = header.Value;
                     break;
             }
         }
+    }
+
+    private void SetSenderProperties(string sender)
+    {
+        int startIndex = sender.IndexOf('<');
+        int endIndex = sender.LastIndexOf('>');
+
+        if (startIndex >= 0 && endIndex > startIndex)
+        {
+            Name = sender[..startIndex].Trim();
+            Address = sender.Substring(startIndex + 1, endIndex - startIndex - 1).Trim();
+        }
+        else
+        {
+            Name = string.Empty;
+            Address = sender.Trim();
+        }
+
+        Name = Name.Trim('"');
+        Address = Address.Trim('"');
     }
 
     #endregion

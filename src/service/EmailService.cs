@@ -1,5 +1,4 @@
-﻿using System.Text;
-using core;
+﻿using core;
 using Google.Apis.Auth.OAuth2;
 using Google.Apis.Gmail.v1;
 using Google.Apis.Services;
@@ -10,9 +9,68 @@ namespace service;
 public class EmailService
 {
 
+    #region Constructors
+
+    public EmailService()
+    {
+        var credential = Authenticate().GetAwaiter().GetResult();
+        _service = new GmailService(new BaseClientService.Initializer
+        {
+            HttpClientInitializer = credential,
+            ApplicationName = "Gmailer"
+        });
+    }
+
+    #endregion
+
+    #region Variables
+
+    private readonly GmailService _service;
+
+    #endregion
+
     #region Public Methods
 
     public async Task GetEmails()
+    {
+        List<MessageBatch> messages = new List<MessageBatch>();
+        await LoadMessages(messages, "first");
+
+        List<Task<Email[]>> tasks = new List<Task<Email[]>>();
+        Parallel.ForEach(messages, batch =>
+        {
+            tasks.Add(GetEmails(batch));
+        });
+        var emailsTask = await Task.WhenAll(tasks.ToArray());
+        
+        Email[] emails = emailsTask.SelectMany(t => t).ToArray();
+        emails.DetermineDomains();
+        var groupedEmails = emails
+            .Select(e => new
+            {
+                e.Address,
+                e.Domain,
+                Count = 1
+            })
+            .GroupBy(e => e.Domain)
+            .OrderBy(g => g.Count());
+
+        foreach (var group in groupedEmails)
+        {
+            int count = group.Sum(e => e.Count);
+            string? address = group.First().Address;
+            string output = $"{address} [{count}]";
+            Console.WriteLine(output);
+        }
+        
+        Console.WriteLine($"Total emails: {emails.Length}");
+    }
+
+    #endregion
+
+    #region Helper Methods
+
+    private static async Task<UserCredential> Authenticate()
     {
         string? clientId = Environment.GetEnvironmentVariable("GMAIL_CLIENT_ID");
         string? clientSecret = Environment.GetEnvironmentVariable("GMAIL_CLIENT_SECRET");
@@ -31,39 +89,50 @@ public class EmailService
             "user",
             CancellationToken.None,
             new FileDataStore("etc"));
+        return credential;
+    }
 
-        // Create the service.
-        var service = new GmailService(new BaseClientService.Initializer
+    private async Task<Email[]> GetEmails(MessageBatch batch)
+    {
+        List<Email> emails = new List<Email>();
+        
+        foreach (var id in batch.MessageIds)
         {
-            HttpClientInitializer = credential,
-            ApplicationName = "Gmailer"
-        });
+            var request = _service.Users.Messages.Get("me", id);
+            var response = await request.ExecuteAsync();
+            if (response == null)
+            {
+                throw new AggregateException("Could not return emails.");
+            }
 
-        var emailListRequest = service.Users.Messages.List("me");
-        emailListRequest.LabelIds = "INBOX";
-        emailListRequest.IncludeSpamTrash = false;
-        //emailListRequest.Q = "is:unread"; // For unread emails
+            emails.Add(new Email(response.Payload.Headers, id));
+        }
 
-        var emailListResponse = await emailListRequest.ExecuteAsync();
-        if (emailListResponse?.Messages == null)
+        return emails.ToArray();
+    }
+
+    private async Task LoadMessages(ICollection<MessageBatch> messages, string pageToken)
+    {
+        if (string.IsNullOrEmpty(pageToken))
         {
             return;
         }
 
-        List<Email> emails = new List<Email>();
-        foreach (var email in emailListResponse.Messages)
-        {
-            var emailInfoRequest = service.Users.Messages.Get("me", email.Id);
-            var emailInfoResponse = await emailInfoRequest.ExecuteAsync();
-            if (emailInfoResponse == null)
-            {
-                continue;
-            }
+        var emailListRequest = _service.Users.Messages.List("me");
+        emailListRequest.LabelIds = "INBOX";
+        emailListRequest.IncludeSpamTrash = false;
+        emailListRequest.MaxResults = 50;
+        emailListRequest.PageToken = pageToken != "first" ? pageToken : null;
+        //emailListRequest.Q = "is:unread"; // For unread emails
 
-            emails.Add(new Email(emailInfoResponse.Payload.Headers));
+        var response = await emailListRequest.ExecuteAsync();
+        if (response?.Messages == null)
+        {
+            throw new AggregateException("Could not return messages.");
         }
-        
-        Console.WriteLine($"All emails {emails.Count}");
+
+        messages.Add(new MessageBatch(response.Messages));
+        await LoadMessages(messages, response.NextPageToken);
     }
 
     #endregion
