@@ -7,6 +7,11 @@ public class Email
 
     #region Constructors
 
+    public Email()
+    {
+        // for json deserialization
+    }
+    
     public Email(IEnumerable<MessagePartHeader> headers, string id)
     {
         Id = id;
@@ -17,14 +22,14 @@ public class Email
 
     #region Properties
 
-    public string? Address { get; private set; }
-    public string? Date { get; private set; }
+    public string? Address { get; set; }
+    public string? Date { get; set; }
     public string? Domain { get; set; }
 
-    public string? Id { get; private set; }
-    public string? Name { get; private set; }
-    public string? Sender { get; private set; }
-    public string? Subject { get; private set; }
+    public string? Id { get; set; }
+    public string? Name { get; set; }
+    public string? Sender { get; set; }
+    public string? Subject { get; set; }
 
     #endregion
 

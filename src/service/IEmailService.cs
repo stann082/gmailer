@@ -1,8 +1,11 @@
-﻿using core.cli;
+﻿using core;
+using core.cli;
+using Google.Apis.Gmail.v1.Data;
 
 namespace service;
 
 public interface IEmailService
 {
-    Task ListEmails(ListOptions options);
+    Email[] ListEmails(MessagesOptions options);
+    Label[] ListLabels();
 }

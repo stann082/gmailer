@@ -3,8 +3,9 @@
 public static class Extensions
 {
 
-    public static void DetermineDomains(this IEnumerable<Email> emails)
+    public static void DetermineDomains(this IEnumerable<Email>? emails)
     {
+        if (emails == null) return;
         foreach (var email in emails)
         {
             if (string.IsNullOrEmpty(email.Sender))

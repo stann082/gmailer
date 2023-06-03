@@ -2,8 +2,11 @@
 using core.cli;
 using Google.Apis.Auth.OAuth2;
 using Google.Apis.Gmail.v1;
+using Google.Apis.Gmail.v1.Data;
 using Google.Apis.Services;
 using Google.Apis.Util.Store;
+using Newtonsoft.Json;
+using StackExchange.Redis;
 
 namespace service;
 
@@ -12,8 +15,10 @@ public class EmailService : IEmailService
 
     #region Constructors
 
-    public EmailService()
+    public EmailService(IConnectionMultiplexer redis)
     {
+        _cache = redis.GetDatabase();
+
         var credential = Authenticate().GetAwaiter().GetResult();
         _service = new GmailService(new BaseClientService.Initializer
         {
@@ -26,42 +31,41 @@ public class EmailService : IEmailService
 
     #region Variables
 
+    private readonly IDatabase _cache;
     private readonly GmailService _service;
 
     #endregion
 
     #region Public Methods
 
-    public async Task ListEmails(ListOptions options)
+    public Email[] ListEmails(MessagesOptions options)
     {
-        List<MessageBatch> messages = new List<MessageBatch>();
-        await LoadMessages(messages, "first", options);
-
-        List<Task<Email[]>> tasks = new List<Task<Email[]>>();
-        Parallel.ForEach(messages, batch => { tasks.Add(GetEmails(batch)); });
-        var emailsTask = await Task.WhenAll(tasks.ToArray());
-
-        Email[] emails = emailsTask.SelectMany(t => t).ToArray();
-        emails.DetermineDomains();
-        var groupedEmails = emails
-            .Select(e => new
-            {
-                e.Address,
-                e.Domain,
-                Count = 1
-            })
-            .GroupBy(e => e.Domain)
-            .OrderBy(g => g.Count());
-
-        foreach (var group in groupedEmails)
+        Email[]? emails = RetrieveEmails(options);
+        if (options.Cache)
         {
-            int count = group.Sum(e => e.Count);
-            string? address = group.First().Address;
-            string output = $"{address} [{count}]";
-            Console.WriteLine(output);
+            _cache.KeyDelete(options.Label);
+            string emailsValue = JsonConvert.SerializeObject(emails);
+            _cache.StringSet(options.Label, emailsValue);
         }
 
-        Console.WriteLine($"Total emails: {emails.Length}");
+        if (emails == null)
+        {
+            throw new AggregateException("Could not retrieve emails");
+        }
+
+        return emails;
+    }
+
+    public Label[] ListLabels()
+    {
+        var request = _service.Users.Labels.List("me");
+        var response = request.ExecuteAsync().GetAwaiter().GetResult();
+        if (response?.Labels == null)
+        {
+            throw new AggregateException("Could not return labels.");
+        }
+
+        return response.Labels.ToArray();
     }
 
     #endregion
@@ -90,7 +94,7 @@ public class EmailService : IEmailService
         return credential;
     }
 
-    private async Task<Email[]> GetEmails(MessageBatch batch)
+    private async Task<Email[]> FetchEmails(MessageBatch batch)
     {
         List<Email> emails = new List<Email>();
 
@@ -103,38 +107,66 @@ public class EmailService : IEmailService
                 throw new AggregateException("Could not return emails.");
             }
 
-            emails.Add(new Email(response.Payload.Headers, id));
+            Email email = new Email(response.Payload.Headers, id);
+            emails.Add(email);
         }
 
         return emails.ToArray();
     }
 
-    private async Task LoadMessages(ICollection<MessageBatch> messages, string pageToken, ListOptions options)
+    private void LoadMessages(ICollection<MessageBatch> messages, string pageToken, MessagesOptions options)
     {
         if (string.IsNullOrEmpty(pageToken))
         {
             return;
         }
 
-        var emailListRequest = _service.Users.Messages.List("me");
-        emailListRequest.LabelIds = options.Label?.ToUpper();
-        emailListRequest.IncludeSpamTrash = false;
-        emailListRequest.MaxResults = options.MaxResults;
-        emailListRequest.PageToken = pageToken != "first" ? pageToken : null;
+        var request = _service.Users.Messages.List("me");
+        if (options.Label != "all")
+        {
+            request.LabelIds = options.Label?.ToUpper();
+        }
+
+        request.IncludeSpamTrash = false;
+        request.MaxResults = options.MaxResults;
+        request.PageToken = pageToken != "first" ? pageToken : null;
 
         if (options.Unread)
         {
-            emailListRequest.Q = "is:unread";
+            request.Q = "is:unread";
         }
 
-        var response = await emailListRequest.ExecuteAsync();
+        var response = request.ExecuteAsync().GetAwaiter().GetResult();
         if (response?.Messages == null)
         {
             throw new AggregateException("Could not return messages.");
         }
 
         messages.Add(new MessageBatch(response.Messages));
-        await LoadMessages(messages, response.NextPageToken, options);
+        LoadMessages(messages, response.NextPageToken, options);
+    }
+
+    private Email[]? RetrieveEmails(MessagesOptions options)
+    {
+        if (options.ShouldGetCache)
+        {
+            Console.WriteLine("Fetching emails from a local cache. This shouldn't take long.");
+            string storedEmailsJson = _cache.StringGet(options.Label)!;
+            return JsonConvert.DeserializeObject<List<Email>>(storedEmailsJson)?.ToArray();
+        }
+
+        Console.WriteLine("Fetching message ids");
+        List<MessageBatch> messageBatch = new List<MessageBatch>();
+        LoadMessages(messageBatch, "first", options);
+
+        Console.WriteLine("Fetching emails from server. This may take a while.");
+        List<Task<Email[]>> tasks = new List<Task<Email[]>>();
+        Parallel.ForEach(messageBatch, batch => { tasks.Add(FetchEmails(batch)); });
+        var emailsTask = Task.WhenAll(tasks.ToArray()).GetAwaiter().GetResult();
+
+        Email[] emails = emailsTask.SelectMany(t => t).ToArray();
+        emails.DetermineDomains();
+        return emails;
     }
 
     #endregion
