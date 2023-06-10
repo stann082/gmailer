@@ -1,27 +1,20 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:syncfusion="clr-namespace:Syncfusion.Maui.DataGrid;assembly=Syncfusion.Maui.DataGrid"
+             xmlns:throwaway="using:ui.model"
              x:Class="ui.MainPage">
 
-    <ScrollView>
-        <StackLayout>
-            <StackLayout Orientation="Horizontal">
-                <Label Text="Name:" />
-                <Entry Placeholder="Enter your name" />
-            </StackLayout>
-            <StackLayout Orientation="Horizontal">
-                <Label Text="Age:" />
-                <Entry Placeholder="Enter your age" />
-            </StackLayout>
-            <StackLayout Orientation="Horizontal">
-                <Label Text="Occupation:" />
-                <Entry Placeholder="Enter your occupation" />
-            </StackLayout>
-            <StackLayout Orientation="Horizontal">
-                <Label Text="Address:" />
-                <Entry Placeholder="Enter your address" />
-            </StackLayout>
-        </StackLayout>
-    </ScrollView>
+    <ContentPage.BindingContext>
+        <throwaway:EmailModel />
+    </ContentPage.BindingContext>
+
+    <ContentPage.Content>
+        <syncfusion:SfDataGrid x:Name="dataGrid" 
+                               ColumnWidthMode="Fill" 
+                               BackgroundColor="White" 
+                               ItemsSource="{Binding Emails}">
+        </syncfusion:SfDataGrid>
+    </ContentPage.Content>
 
 </ContentPage>

@@ -1,9 +1,10 @@
 ﻿using CommandLine;
+using core.interfaces;
 
-namespace core.cli;
+namespace cli.options;
 
 [Verb("messages", HelpText = "Managing messages.")]
-public class MessagesOptions
+public class MessagesOptions : IMessagesOptions
 {
 
     [Option('c', "cache", Default = false, HelpText = "Cache emails.")]

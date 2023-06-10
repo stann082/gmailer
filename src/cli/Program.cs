@@ -2,7 +2,7 @@
 using service;
 using StackExchange.Redis;
 
-namespace main;
+namespace cli;
 
 public static class Program
 {

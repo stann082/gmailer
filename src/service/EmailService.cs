@@ -1,5 +1,5 @@
 ﻿using core;
-using core.cli;
+using core.interfaces;
 using Google.Apis.Auth.OAuth2;
 using Google.Apis.Gmail.v1;
 using Google.Apis.Gmail.v1.Data;
@@ -38,7 +38,7 @@ public class EmailService : IEmailService
 
     #region Public Methods
 
-    public Email[] ListEmails(MessagesOptions options)
+    public Email[] ListEmails(IMessagesOptions options)
     {
         Email[]? emails = RetrieveEmails(options);
         if (options.Cache)
@@ -114,7 +114,7 @@ public class EmailService : IEmailService
         return emails.ToArray();
     }
 
-    private void LoadMessages(ICollection<MessageBatch> messages, string pageToken, MessagesOptions options)
+    private void LoadMessages(ICollection<MessageBatch> messages, string pageToken, IMessagesOptions options)
     {
         if (string.IsNullOrEmpty(pageToken))
         {
@@ -146,7 +146,7 @@ public class EmailService : IEmailService
         LoadMessages(messages, response.NextPageToken, options);
     }
 
-    private Email[]? RetrieveEmails(MessagesOptions options)
+    private Email[]? RetrieveEmails(IMessagesOptions options)
     {
         if (options.ShouldGetCache)
         {

@@ -1,32 +1,52 @@
-﻿using service;
+﻿using core.nullobj;
+using service;
+using ui.model;
+using Email = core.Email;
 
 namespace ui;
 
-public partial class MainPage : ContentPage
+public partial class MainPage
 {
 
     #region Constructors
 
     public MainPage(IEmailService emailService)
     {
-        _emailService = emailService;
         InitializeComponent();
+
+        MessagesOptions options = new MessagesOptions();
+        options.ShouldGetCache = true;
+        options.Label = "inbox";
+        options.MaxResults = 50;
+
+        Email[] emails = emailService.ListEmails(options);
+        EmailModel context = new EmailModel();
+        foreach (var email in emails)
+        {
+            context.Emails.Add(email);
+        }
+
+        dataGrid.ItemsSource = context.Emails;
     }
 
     #endregion
 
-    #region Variables
+    #region Helper Classes
 
-    private readonly IEmailService _emailService;
-
-    #endregion
-
-    #region Event Handlers
-
-    private void OnCounterClicked(object sender, EventArgs e)
+    // TODO: bind IMessagesOptions to the UI controls
+    private class MessagesOptions : NullMessagesOptions
     {
+
+        #region Properties
+
+        public override string Label { get; set; }
+        public override int MaxResults { get; set; }
+        public override bool ShouldGetCache { get; set; }
+
+        #endregion
+
     }
 
     #endregion
-        
+
 }

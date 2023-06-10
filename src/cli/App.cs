@@ -1,10 +1,10 @@
-﻿using CommandLine;
+﻿using cli.options;
+using CommandLine;
 using core;
-using core.cli;
 using Google.Apis.Gmail.v1.Data;
 using service;
 
-namespace main;
+namespace cli;
 
 public class App
 {
@@ -73,18 +73,18 @@ public class App
             Console.WriteLine("Trying to fetch all messages results in a rate limit exception. Do not use it until you figure out how to handle it.");
             return 1;
         }
-        
+
         if (opts.Recent > opts.MaxResults)
         {
             Console.WriteLine($"The number of recent items to display {opts.Recent} cannot be greater than the number of results per page {opts.MaxResults}");
             return 1;
         }
-        
+
         Email[] emails = _emailService.ListEmails(opts);
         var groupedEmails = emails
             .GroupBy(e => e.Domain)
             .OrderBy(g => g.Count());
-        
+
         int count = 1;
         foreach (var group in groupedEmails)
         {
@@ -102,7 +102,7 @@ public class App
             Console.Write("\nPlease enter the group numbers of emails you wish to delete: ");
             string? input = Console.ReadLine();
         }
-        
+
         return 0;
     }
 

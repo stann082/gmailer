@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using service;
 using StackExchange.Redis;
-using UraniumUI;
+using Syncfusion.Maui.Core.Hosting;
 
 namespace ui;
 
@@ -15,8 +15,7 @@ public static class MauiProgram
         var builder = MauiApp.CreateBuilder();
         builder
             .UseMauiApp<App>()
-            .UseUraniumUI()
-            .UseUraniumUIMaterial()
+            .ConfigureSyncfusionCore()
             .ConfigureFonts(fonts =>
             {
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");

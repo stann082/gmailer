@@ -5,7 +5,7 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{51D2FA35-B56B-4623-B886-39460EC6CF06}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "main", "src\main\main.csproj", "{F6EC5E20-F3F3-4B22-ADEA-8CF12AED6A53}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "cli", "src\cli\cli.csproj", "{F6EC5E20-F3F3-4B22-ADEA-8CF12AED6A53}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "service", "src\service\service.csproj", "{383FDE27-AD4D-4F5F-A8E5-8C9C5B6824E4}"
 EndProject

@@ -1,6 +1,6 @@
 ﻿using CommandLine;
 
-namespace core.cli;
+namespace cli.options;
 
 [Verb("labels", HelpText = "Managing labels.")]
 public class LabelsOptions

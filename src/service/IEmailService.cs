@@ -1,11 +1,13 @@
 ﻿using core;
-using core.cli;
+using core.interfaces;
 using Google.Apis.Gmail.v1.Data;
 
 namespace service;
 
 public interface IEmailService
 {
-    Email[] ListEmails(MessagesOptions options);
+    
+    Email[] ListEmails(IMessagesOptions options);
     Label[] ListLabels();
+    
 }
