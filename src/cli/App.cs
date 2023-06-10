@@ -82,11 +82,17 @@ public class App
         }
 
         EmailGroupingCollection grouping = _emailService.ListEmails(opts);
+        if (opts.ShouldCacheEmails)
+        {
+            Console.WriteLine($"Cached {grouping.GetEmailsTotal()} emails");
+            return 0;
+        }
+        
         if (!opts.ShouldGroup)
         {
-            foreach (var email in grouping.GetEmails().OrderBy(e => e.Date))
+            foreach (var email in grouping.GetEmails().OrderBy(e => e.ToDateTime()))
             {
-                Console.WriteLine($"{email.Subject} <{email.Address}> [{email.Date}]");
+                Console.WriteLine($"{email.Subject} <{email.Address}> [{email.ToDateTime()}]");
             }
 
             return 0;

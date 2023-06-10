@@ -43,7 +43,8 @@ public class EmailService : IEmailService
         EmailGroupingCollection grouping = new EmailGroupingCollection();
         
         Email[]? emails = RetrieveEmails(options);
-        if (options.Cache)
+        emails.DetermineDomains();
+        if (options.ShouldCacheEmails)
         {
             _cache.KeyDelete(options.Label);
             string emailsValue = JsonConvert.SerializeObject(emails);
@@ -175,9 +176,7 @@ public class EmailService : IEmailService
         Parallel.ForEach(messageBatch, batch => { tasks.Add(FetchEmails(batch)); });
         var emailsTask = Task.WhenAll(tasks.ToArray()).GetAwaiter().GetResult();
 
-        Email[] emails = emailsTask.SelectMany(t => t).ToArray();
-        emails.DetermineDomains();
-        return emails;
+        return emailsTask.SelectMany(t => t).ToArray();
     }
 
     #endregion

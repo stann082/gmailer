@@ -8,7 +8,7 @@ public class MessagesOptions : IMessagesOptions
 {
 
     [Option('c', "cache", Default = false, HelpText = "Cache emails.")]
-    public bool Cache { get; set; }
+    public bool ShouldCacheEmails { get; set; }
     
     [Option('d', "delete", Default = false, HelpText = "Deletes selected messages.")]
     public bool ShouldDelete { get; set; }

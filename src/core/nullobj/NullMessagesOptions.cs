@@ -5,7 +5,7 @@ namespace core.nullobj;
 public class NullMessagesOptions : IMessagesOptions
 {
 
-    public virtual bool Cache { get; }
+    public virtual bool ShouldCacheEmails { get; }
     public virtual string? Label { get; set; }
     public virtual int MaxResults { get; set;  }
     public virtual int Recent { get; }

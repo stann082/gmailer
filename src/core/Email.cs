@@ -23,7 +23,7 @@ public class Email
     #region Properties
 
     public string? Address { get; set; }
-    public DateTime? Date { get; set; }
+    public string? Date { get; set; }
     public string? Domain { get; set; }
 
     public string? Id { get; set; }
@@ -33,6 +33,15 @@ public class Email
 
     #endregion
 
+    #region Public Methods
+
+    public DateTime ToDateTime()
+    {
+        return DateTime.TryParse(Date, out var result) ? result : DateTime.MinValue;
+    }
+
+    #endregion
+    
     #region Helper Methods
 
     private void Initialize(IEnumerable<MessagePartHeader> headers)
@@ -42,7 +51,7 @@ public class Email
             switch (header.Name)
             {
                 case "Date":
-                    Date = DateTime.TryParse(header.Value, out var result) ? result : DateTime.MinValue;
+                    Date = header.Value;
                     break;
                 case "From":
                     Sender = header.Value;
