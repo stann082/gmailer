@@ -1,6 +1,7 @@
 ﻿using cli.options;
 using CommandLine;
 using core;
+using core.interfaces;
 using Google.Apis.Gmail.v1.Data;
 using service;
 
@@ -66,7 +67,7 @@ public class App
         return 0;
     }
 
-    private int ListEmails(MessagesOptions opts)
+    private int ListEmails(IMessagesOptions opts)
     {
         if (opts.Label == "all")
         {
@@ -80,23 +81,26 @@ public class App
             return 1;
         }
 
-        Email[] emails = _emailService.ListEmails(opts);
-        var groupedEmails = emails
-            .GroupBy(e => e.Domain)
-            .OrderBy(g => g.Count());
+        EmailGroupingCollection grouping = _emailService.ListEmails(opts);
+        if (!opts.ShouldGroup)
+        {
+            foreach (var email in grouping.GetEmails().OrderBy(e => e.Date))
+            {
+                Console.WriteLine($"{email.Subject} <{email.Address}> [{email.Date}]");
+            }
+
+            return 0;
+        }
 
         int count = 1;
-        foreach (var group in groupedEmails)
+        foreach (var group in grouping.GetGroupings())
         {
-            int total = group.Count();
-            var item = group.First();
-            string? name = !string.IsNullOrEmpty(item.Name) ? item.Name : item.Address;
-            string output = $"{count}: {name} ({total})";
+            string output = $"{count}: {group.GetName()} ({group.Total})";
             Console.WriteLine(output);
             count++;
         }
 
-        Console.WriteLine($"Total emails: {emails.Length}");
+        Console.WriteLine($"Total emails: {grouping.GetEmailsTotal()}");
         if (opts.ShouldDelete)
         {
             Console.Write("\nPlease enter the group numbers of emails you wish to delete: ");

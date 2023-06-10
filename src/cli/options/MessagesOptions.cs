@@ -25,6 +25,9 @@ public class MessagesOptions : IMessagesOptions
     [Option("get-cached", Default = false, HelpText = "Get cached items.")]
     public bool ShouldGetCache { get; set; }
     
+    [Option('g', "group", Default = false, HelpText = "Group emails.")]
+    public bool ShouldGroup { get; set; }
+
     [Option('u', "unread", Default = false, HelpText = "Show unread emails only.")]
     public bool Unread { get; set; }
 

@@ -9,6 +9,7 @@ public interface IMessagesOptions
     int Recent { get; }
     bool ShouldDelete { get; }
     bool ShouldGetCache { get; }
+    bool ShouldGroup { get; }
     bool Unread { get; }
     
 }

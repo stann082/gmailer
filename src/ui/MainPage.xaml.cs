@@ -1,4 +1,5 @@
-﻿using core.nullobj;
+﻿using core;
+using core.nullobj;
 using service;
 using ui.model;
 using Email = core.Email;
@@ -19,9 +20,9 @@ public partial class MainPage
         options.Label = "inbox";
         options.MaxResults = 50;
 
-        Email[] emails = emailService.ListEmails(options);
+        EmailGroupingCollection grouping = emailService.ListEmails(options);
         EmailModel context = new EmailModel();
-        foreach (var email in emails)
+        foreach (var email in grouping.GetEmails())
         {
             context.Emails.Add(email);
         }

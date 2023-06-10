@@ -38,8 +38,10 @@ public class EmailService : IEmailService
 
     #region Public Methods
 
-    public Email[] ListEmails(IMessagesOptions options)
+    public EmailGroupingCollection ListEmails(IMessagesOptions options)
     {
+        EmailGroupingCollection grouping = new EmailGroupingCollection();
+        
         Email[]? emails = RetrieveEmails(options);
         if (options.Cache)
         {
@@ -53,7 +55,16 @@ public class EmailService : IEmailService
             throw new AggregateException("Could not retrieve emails");
         }
 
-        return emails;
+        var groupedEmails = emails
+            .GroupBy(e => e.Domain)
+            .OrderBy(g => g.Count());
+
+        foreach (IGrouping<string?, Email> group in groupedEmails)
+        {
+            grouping.AddGrouping(new EmailGrouping(group));
+        }
+
+        return grouping;
     }
 
     public Label[] ListLabels()

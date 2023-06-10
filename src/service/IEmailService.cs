@@ -7,7 +7,7 @@ namespace service;
 public interface IEmailService
 {
     
-    Email[] ListEmails(IMessagesOptions options);
+    EmailGroupingCollection ListEmails(IMessagesOptions options);
     Label[] ListLabels();
     
 }
