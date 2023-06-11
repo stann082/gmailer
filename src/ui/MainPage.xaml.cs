@@ -1,8 +1,8 @@
-﻿using core;
+using core;
 using core.nullobj;
 using service;
+using Syncfusion.Maui.ListView;
 using ui.model;
-using Email = core.Email;
 
 namespace ui;
 
@@ -14,6 +14,8 @@ public partial class MainPage
     public MainPage(IEmailService emailService)
     {
         InitializeComponent();
+        BindingContext = new MainPageViewModel(emailService);
+        btnDelete.IsEnabled = false;
 
         MessagesOptions options = new MessagesOptions();
         options.ShouldGetCache = true;
@@ -21,13 +23,49 @@ public partial class MainPage
         options.MaxResults = 50;
 
         EmailGroupingCollection grouping = emailService.ListEmails(options);
-        EmailModel context = new EmailModel();
-        foreach (var email in grouping.GetEmails())
+        EmailRepository viewModel = new EmailRepository();
+        foreach (var email in grouping.GetGroupings().OrderByDescending(g => g.Total))
         {
-            context.Emails.Add(email);
+            viewModel.Emails.Add(email);
         }
 
-        dataGrid.ItemsSource = context.Emails;
+        listView.ItemsSource = viewModel.Emails;
+        listView.ItemTemplate = new DataTemplate(() =>
+        {
+            var grid = new Grid();
+            grid.RowDefinitions.Add(new RowDefinition());
+            grid.RowDefinitions.Add(new RowDefinition());
+            var domain = new Label { FontAttributes = FontAttributes.Bold, TextColor = Colors.Black, FontSize = 21 };
+            domain.SetBinding(Label.TextProperty, new Binding("Domain"));
+            var total = new Label { TextColor = Colors.Gray, FontSize = 15 };
+            total.SetBinding(Label.TextProperty, new Binding("Total"));
+
+            grid.Children.Add(domain);
+            grid.Children.Add(total);
+            grid.SetRow(domain, 0);
+            grid.SetRow(total, 1);
+
+            return grid;
+        });
+    }
+
+    #endregion
+
+    #region Event Handlers
+
+    private void Popup_Clicked(object sender, EventArgs e)
+    {
+        if (listView.SelectedItem is not EmailGrouping)
+        {
+            return;
+        }
+
+        popup.Show();
+    }
+
+    private void ListView_OnSelectionChanged(object sender, ItemSelectionChangedEventArgs e)
+    {
+        if (listView.SelectedItems != null) btnDelete.IsEnabled = listView.SelectedItems.Any();
     }
 
     #endregion

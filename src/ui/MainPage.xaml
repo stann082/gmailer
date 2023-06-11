@@ -1,20 +1,44 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             xmlns:syncfusion="clr-namespace:Syncfusion.Maui.DataGrid;assembly=Syncfusion.Maui.DataGrid"
-             xmlns:throwaway="using:ui.model"
+             xmlns:sfList="clr-namespace:Syncfusion.Maui.ListView;assembly=Syncfusion.Maui.ListView"
+             xmlns:sfPopup="clr-namespace:Syncfusion.Maui.Popup;assembly=Syncfusion.Maui.Popup"
+             xmlns:uimodel="using:ui.model"
              x:Class="ui.MainPage">
 
     <ContentPage.BindingContext>
-        <throwaway:EmailModel />
+        <uimodel:MainPageViewModel />
     </ContentPage.BindingContext>
-
-    <ContentPage.Content>
-        <syncfusion:SfDataGrid x:Name="dataGrid" 
-                               ColumnWidthMode="Fill" 
-                               BackgroundColor="White" 
-                               ItemsSource="{Binding Emails}">
-        </syncfusion:SfDataGrid>
-    </ContentPage.Content>
+    
+    <StackLayout>
+        <Button x:Name="btnDelete" 
+                Text="Delete" 
+                VerticalOptions="Start" 
+                HorizontalOptions="FillAndExpand"
+                Command="{Binding PopupViewModel.PopupCommand}">
+        </Button>
+        <sfPopup:SfPopup x:Name="popup"
+                       ShowFooter="True"
+                       HeaderTitle="Warning"
+                       AppearanceMode="TwoButton"
+                       AcceptCommand="{Binding PopupViewModel.PopupAcceptCommand}">
+            <sfPopup:SfPopup.ContentTemplate>
+                <DataTemplate>
+                    <Label Text="Are you sure you want to delete selected emails?"
+                           LineBreakMode="WordWrap" LineHeight="1.2"
+                           TextColor="#49454E" FontSize="14" 
+                           FontFamily="Roboto"/>
+                </DataTemplate>
+            </sfPopup:SfPopup.ContentTemplate>
+        </sfPopup:SfPopup>
+    
+        <sfList:SfListView x:Name="listView" 
+                               AutoFitMode="DynamicHeight"
+                               BackgroundColor="White"
+                               SelectionMode="Multiple"
+                               ItemsSource="{Binding EmailRepository.Emails}"
+                               SelectionChanged="ListView_OnSelectionChanged">
+        </sfList:SfListView>
+    </StackLayout>
 
 </ContentPage>

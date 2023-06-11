@@ -21,7 +21,8 @@ public static class Extensions
 
             string[] recipientSplit = email.Sender.Split('@');
             string[]? domainParts = recipientSplit.LastOrDefault()?.Split('.');
-            email.Domain = domainParts?.Length >= 2 ? string.Join('.', domainParts, domainParts.Length - 2, 2) : recipientSplit.LastOrDefault();
+            string? lastTwoParts = domainParts?.Length >= 2 ? string.Join('.', domainParts, domainParts.Length - 2, 2) : recipientSplit.LastOrDefault();
+            email.Domain = lastTwoParts?.Trim('<', '>');
         }
     }
 
