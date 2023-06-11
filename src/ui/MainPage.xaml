@@ -16,7 +16,6 @@
                 VerticalOptions="Start" 
                 HorizontalOptions="FillAndExpand"
                 Clicked="Popup_Clicked">
-                <!-- Command="{Binding PopupViewModel.PopupCommand}"> -->
         </Button>
         <sfPopup:SfPopup x:Name="popup"
                        ShowFooter="True"

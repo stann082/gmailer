@@ -115,7 +115,7 @@ public class EmailService : IEmailService
             new[] { GmailService.Scope.MailGoogleCom },
             "user",
             CancellationToken.None,
-            new FileDataStore("etc"));
+            new FileDataStore("GmailAPI"));
         return credential;
     }
 
