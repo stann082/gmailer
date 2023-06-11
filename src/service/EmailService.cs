@@ -38,10 +38,23 @@ public class EmailService : IEmailService
 
     #region Public Methods
 
+    public void DeleteGroupings(EmailGrouping[] groupings)
+    {
+        BatchDeleteMessagesRequest messagesRequest = new BatchDeleteMessagesRequest();
+        messagesRequest.Ids = new List<string>();
+        foreach (Email email in groupings.SelectMany(g => g.Emails))
+        {
+            messagesRequest.Ids.Add(email.Id);
+        }
+
+        var request = _service.Users.Messages.BatchDelete(messagesRequest, "me");
+        var response = request.ExecuteAsync().GetAwaiter().GetResult();
+    }
+
     public EmailGroupingCollection ListEmails(IMessagesOptions options)
     {
         EmailGroupingCollection grouping = new EmailGroupingCollection();
-        
+
         Email[]? emails = RetrieveEmails(options);
         emails.DetermineDomains();
         if (options.ShouldCacheEmails)
@@ -99,7 +112,7 @@ public class EmailService : IEmailService
                 ClientId = clientId,
                 ClientSecret = clientSecret
             },
-            new[] { GmailService.Scope.GmailReadonly, GmailService.Scope.GmailModify },
+            new[] { GmailService.Scope.MailGoogleCom },
             "user",
             CancellationToken.None,
             new FileDataStore("etc"));
@@ -140,7 +153,20 @@ public class EmailService : IEmailService
         }
 
         request.IncludeSpamTrash = false;
-        request.MaxResults = options.MaxResults;
+
+        if (options.Recent > 0)
+        {
+            request.MaxResults = options.Recent;
+        }
+        else if (options.ResultsPePage > 0)
+        {
+            request.MaxResults = options.ResultsPePage;
+        }
+        else
+        {
+            request.MaxResults = 100;
+        }
+
         request.PageToken = pageToken != "first" ? pageToken : null;
 
         if (options.Unread)
@@ -155,6 +181,11 @@ public class EmailService : IEmailService
         }
 
         messages.Add(new MessageBatch(response.Messages));
+        if (options.Recent > 0)
+        {
+            return;
+        }
+
         LoadMessages(messages, response.NextPageToken, options);
     }
 

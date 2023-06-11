@@ -4,7 +4,7 @@ public interface IMessagesOptions
 {
     
     string? Label { get; }
-    int MaxResults { get; }
+    int ResultsPePage { get; }
     int Recent { get; }
     bool ShouldDelete { get; }
     bool ShouldCacheEmails { get; }

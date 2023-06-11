@@ -75,9 +75,9 @@ public class App
             return 1;
         }
 
-        if (opts.Recent > opts.MaxResults)
+        if (opts.Recent > 500)
         {
-            Console.WriteLine($"The number of recent items to display {opts.Recent} cannot be greater than the number of results per page {opts.MaxResults}");
+            Console.WriteLine($"The number of recent items to display {opts.Recent} cannot be greater than 500");
             return 1;
         }
 
@@ -107,7 +107,7 @@ public class App
         }
 
         Console.WriteLine($"Total emails: {grouping.GetEmailsTotal()}");
-        if (opts.ShouldDelete)
+        if (!opts.ShouldDelete)
         {
             Console.Write("\nPlease enter the group numbers of emails you wish to delete: ");
             string? input = Console.ReadLine();

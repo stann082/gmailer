@@ -1,19 +1,19 @@
-﻿using System.ComponentModel;
-using System.Windows.Input;
+﻿using System.Windows.Input;
+using core;
 using service;
 
 namespace ui.model;
 
-public class PopupViewModel : INotifyPropertyChanged
+public class PopupViewModel
 {
 
     #region Constructos
 
-    public PopupViewModel(IEmailService emailService)
+    public PopupViewModel(IEmailService emailService, IList<EmailGrouping> selectionCache)
     {
         _emailService = emailService;
-        PopupAcceptCommand = new Command(PopupAccept); //CanExecute() will be call the PopupAccept method
-        PopupCommand = new Command(Popup);
+        _selectionCache = selectionCache;
+        PopupAcceptCommand = new Command(PopupAccept);
     }
 
     #endregion
@@ -21,50 +21,23 @@ public class PopupViewModel : INotifyPropertyChanged
     #region Properties
 
     public ICommand PopupAcceptCommand { get; set; }
-    public ICommand PopupCommand { get; set; }
-
-    public bool PopupOpen
-    {
-        get => isOpen;
-        set
-        {
-            isOpen = value;
-            OnPropertyChanged(nameof(PopupOpen));
-        }
-    }
 
     #endregion
-    
+
     #region Variables
 
-    private IEmailService _emailService;
-    private bool isOpen;
-
-    #endregion
-
-    #region INotifyPropertyChanged Members
-
-    public event PropertyChangedEventHandler PropertyChanged;
+    private readonly IEmailService _emailService;
+    private readonly IList<EmailGrouping> _selectionCache;
 
     #endregion
 
     #region Helper Methods
 
-    private void OnPropertyChanged(string propertyName)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-    }
-
-    private void Popup()
-    {
-        PopupOpen = true;
-    }
-
     private void PopupAccept()
     {
-        // You can write your set of codes that needs to be executed.
+        _emailService.DeleteGroupings(_selectionCache.ToArray());
     }
 
     #endregion
-    
+
 }

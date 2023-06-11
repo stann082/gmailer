@@ -14,13 +14,14 @@ public partial class MainPage
     public MainPage(IEmailService emailService)
     {
         InitializeComponent();
-        BindingContext = new MainPageViewModel(emailService);
+        _selectionCache = new List<EmailGrouping>();
+        BindingContext = new MainPageViewModel(emailService, _selectionCache);
         btnDelete.IsEnabled = false;
 
         MessagesOptions options = new MessagesOptions();
-        options.ShouldGetCache = true;
+        options.Recent = 10;
         options.Label = "inbox";
-        options.MaxResults = 50;
+        options.ResultsPePage = 50;
 
         EmailGroupingCollection grouping = emailService.ListEmails(options);
         EmailRepository viewModel = new EmailRepository();
@@ -51,13 +52,29 @@ public partial class MainPage
 
     #endregion
 
+    #region Variables
+
+    private readonly IList<EmailGrouping> _selectionCache;
+
+    #endregion
+
     #region Event Handlers
 
     private void Popup_Clicked(object sender, EventArgs e)
     {
-        if (listView.SelectedItem is not EmailGrouping)
+        if (listView.SelectedItems == null)
         {
             return;
+        }
+
+        foreach (var selectedItem in listView.SelectedItems)
+        {
+            if (selectedItem is not EmailGrouping item)
+            {
+                continue;
+            }
+
+            _selectionCache.Add(item);
         }
 
         popup.Show();
@@ -79,7 +96,8 @@ public partial class MainPage
         #region Properties
 
         public override string Label { get; set; }
-        public override int MaxResults { get; set; }
+        public override int ResultsPePage { get; set; }
+        public override int Recent { get; set; }
         public override bool ShouldGetCache { get; set; }
 
         #endregion

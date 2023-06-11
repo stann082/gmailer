@@ -16,10 +16,10 @@ public class MessagesOptions : IMessagesOptions
     [Option("label", Default = "inbox", HelpText = "Filter by label.")]
     public string? Label { get; set; }
 
-    [Option('p', "page", Default = 50, HelpText = "How many results per page to show.")]
-    public int MaxResults { get; set; }
+    [Option('p', "page", SetName = "paging", HelpText = "How many results per page to show.")]
+    public int ResultsPePage { get; set; }
     
-    [Option('r', "recent", Default = 10, HelpText = "Show recent 'n' items.")]
+    [Option('r', "recent", SetName = "recent", HelpText = "Show recent 'n' items.")]
     public int Recent { get; set; }
 
     [Option("get-cached", Default = false, HelpText = "Get cached items.")]

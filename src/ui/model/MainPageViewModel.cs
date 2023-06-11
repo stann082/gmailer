@@ -1,4 +1,5 @@
-﻿using service;
+﻿using core;
+using service;
 
 namespace ui.model;
 
@@ -12,10 +13,10 @@ public class MainPageViewModel
         // a default constructor for xaml page binding
     }
     
-    public MainPageViewModel(IEmailService emailService)
+    public MainPageViewModel(IEmailService emailService, IList<EmailGrouping> selectionCache)
     {
         EmailRepository = new EmailRepository();
-        PopupViewModel = new PopupViewModel(emailService);
+        PopupViewModel = new PopupViewModel(emailService, selectionCache);
     }
 
     #endregion
