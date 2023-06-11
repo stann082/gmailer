@@ -35,7 +35,11 @@ public class PopupViewModel
 
     private void PopupAccept()
     {
-        _emailService.DeleteGroupings(_selectionCache.ToArray());
+        string response = _emailService.DeleteGroupings(_selectionCache.ToArray());
+        if (string.IsNullOrEmpty(response))
+        {
+            
+        }
     }
 
     #endregion

@@ -38,7 +38,7 @@ public class EmailService : IEmailService
 
     #region Public Methods
 
-    public void DeleteGroupings(EmailGrouping[] groupings)
+    public string DeleteGroupings(IEnumerable<EmailGrouping> groupings)
     {
         BatchDeleteMessagesRequest messagesRequest = new BatchDeleteMessagesRequest();
         messagesRequest.Ids = new List<string>();
@@ -48,7 +48,7 @@ public class EmailService : IEmailService
         }
 
         var request = _service.Users.Messages.BatchDelete(messagesRequest, "me");
-        var response = request.ExecuteAsync().GetAwaiter().GetResult();
+        return request.ExecuteAsync().GetAwaiter().GetResult();
     }
 
     public EmailGroupingCollection ListEmails(IMessagesOptions options)
@@ -81,7 +81,7 @@ public class EmailService : IEmailService
         return grouping;
     }
 
-    public Label[] ListLabels()
+    public IEnumerable<Label> ListLabels()
     {
         var request = _service.Users.Labels.List("me");
         var response = request.ExecuteAsync().GetAwaiter().GetResult();
@@ -199,15 +199,20 @@ public class EmailService : IEmailService
         }
 
         Console.WriteLine("Fetching message ids");
-        List<MessageBatch> messageBatch = new List<MessageBatch>();
-        LoadMessages(messageBatch, "first", options);
+        List<MessageBatch> messageBatches = new List<MessageBatch>();
+        LoadMessages(messageBatches, "first", options);
 
-        Console.WriteLine("Fetching emails from server. This may take a while.");
-        List<Task<Email[]>> tasks = new List<Task<Email[]>>();
-        Parallel.ForEach(messageBatch, batch => { tasks.Add(FetchEmails(batch)); });
-        var emailsTask = Task.WhenAll(tasks.ToArray()).GetAwaiter().GetResult();
+        List<Email> emails = new List<Email>();
 
-        return emailsTask.SelectMany(t => t).ToArray();
+        int batchCount = 1;
+        foreach (MessageBatch messageBatch in messageBatches)
+        {
+            Console.WriteLine($"Processing {batchCount} out of {messageBatches.Count}");
+            emails.AddRange(FetchEmails(messageBatch).GetAwaiter().GetResult());
+            batchCount++;
+        }
+        
+        return emails.ToArray();
     }
 
     #endregion

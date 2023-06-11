@@ -1,6 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:core="clr-namespace:Syncfusion.Maui.Core;assembly=Syncfusion.Maui.Core"
              xmlns:sfList="clr-namespace:Syncfusion.Maui.ListView;assembly=Syncfusion.Maui.ListView"
              xmlns:sfPopup="clr-namespace:Syncfusion.Maui.Popup;assembly=Syncfusion.Maui.Popup"
              xmlns:uimodel="using:ui.model"
@@ -11,6 +12,9 @@
     </ContentPage.BindingContext>
     
     <StackLayout>
+        <core:SfBusyIndicator x:Name="busyIndicator"
+                              AnimationType="CircularMaterial"
+                              Title="Loading..." />
         <Button x:Name="btnDelete" 
                 Text="Delete" 
                 VerticalOptions="Start" 

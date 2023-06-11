@@ -52,7 +52,7 @@ public class App
     {
         try
         {
-            Label[] labels = _emailService.ListLabels();
+            IEnumerable<Label> labels = _emailService.ListLabels();
             foreach (Label label in labels)
             {
                 Console.WriteLine(label.Name);
@@ -107,12 +107,6 @@ public class App
         }
 
         Console.WriteLine($"Total emails: {grouping.GetEmailsTotal()}");
-        if (!opts.ShouldDelete)
-        {
-            Console.Write("\nPlease enter the group numbers of emails you wish to delete: ");
-            string? input = Console.ReadLine();
-        }
-
         return 0;
     }
 

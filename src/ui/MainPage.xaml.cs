@@ -17,37 +17,17 @@ public partial class MainPage
         _selectionCache = new List<EmailGrouping>();
         BindingContext = new MainPageViewModel(emailService, _selectionCache);
         btnDelete.IsEnabled = false;
+        busyIndicator.IsRunning = true;
 
         MessagesOptions options = new MessagesOptions();
-        options.Recent = 10;
+        options.ShouldGetCache = true;
         options.Label = "inbox";
-        options.ResultsPePage = 50;
+        options.ResultsPePage = 100;
 
-        EmailGroupingCollection grouping = emailService.ListEmails(options);
-        EmailRepository viewModel = new EmailRepository();
-        foreach (var email in grouping.GetGroupings().OrderByDescending(g => g.Total))
-        {
-            viewModel.Emails.Add(email);
-        }
-
-        listView.ItemsSource = viewModel.Emails;
-        listView.ItemTemplate = new DataTemplate(() =>
-        {
-            var grid = new Grid();
-            grid.RowDefinitions.Add(new RowDefinition());
-            grid.RowDefinitions.Add(new RowDefinition());
-            var domain = new Label { FontAttributes = FontAttributes.Bold, TextColor = Colors.Black, FontSize = 21 };
-            domain.SetBinding(Label.TextProperty, new Binding("Domain"));
-            var total = new Label { TextColor = Colors.Gray, FontSize = 15 };
-            total.SetBinding(Label.TextProperty, new Binding("Total"));
-
-            grid.Children.Add(domain);
-            grid.Children.Add(total);
-            grid.SetRow(domain, 0);
-            grid.SetRow(total, 1);
-
-            return grid;
-        });
+        EmailRepository viewModel = InitializeEmailRepository(emailService, options);
+        InitializeListView(viewModel);
+        
+        busyIndicator.IsRunning = false;
     }
 
     #endregion
@@ -87,6 +67,45 @@ public partial class MainPage
 
     #endregion
 
+    #region Helper Methods
+
+    private static EmailRepository InitializeEmailRepository(IEmailService emailService, MessagesOptions options)
+    {
+        EmailGroupingCollection grouping = emailService.ListEmails(options);
+        EmailRepository viewModel = new EmailRepository();
+        foreach (var email in grouping.GetGroupings().OrderByDescending(g => g.Total))
+        {
+            viewModel.Emails.Add(email);
+        }
+
+        return viewModel;
+    }
+
+    private void InitializeListView(EmailRepository viewModel)
+    {
+        listView.ItemsSource = viewModel.Emails;
+        listView.ItemTemplate = new DataTemplate(() =>
+        {
+            var grid = new Grid();
+            grid.RowDefinitions.Add(new RowDefinition());
+            grid.RowDefinitions.Add(new RowDefinition());
+            var domain = new Label { FontAttributes = FontAttributes.Bold, TextColor = Colors.Black, FontSize = 21 };
+            domain.SetBinding(Label.TextProperty, new Binding("Domain"));
+            var total = new Label { TextColor = Colors.Gray, FontSize = 15 };
+            total.SetBinding(Label.TextProperty, new Binding("Total"));
+
+            grid.Children.Add(domain);
+            grid.Children.Add(total);
+            grid.SetRow(domain, 0);
+            grid.SetRow(total, 1);
+
+            return grid;
+        });
+    }
+
+
+    #endregion
+    
     #region Helper Classes
 
     // TODO: bind IMessagesOptions to the UI controls
