@@ -1,8 +1,10 @@
 using core;
+using core.interfaces;
 using core.nullobj;
 using service;
 using Syncfusion.Maui.ListView;
 using ui.model;
+using Email = core.Email;
 
 namespace ui;
 
@@ -14,20 +16,22 @@ public partial class MainPage
     public MainPage(IEmailService emailService)
     {
         InitializeComponent();
+
         _selectionCache = new List<EmailGrouping>();
+        _viewModel = new EmailRepository();
+
         BindingContext = new MainPageViewModel(emailService, _selectionCache);
         btnDelete.IsEnabled = false;
-        busyIndicator.IsRunning = true;
+        lblSelectionTotal.Text = "Total emails selected: 0";
 
         MessagesOptions options = new MessagesOptions();
         options.ShouldGetCache = true;
-        options.Label = "inbox";
+        options.Label = "all";
         options.ResultsPePage = 100;
 
-        EmailRepository viewModel = InitializeEmailRepository(emailService, options);
-        InitializeListView(viewModel);
-        
-        busyIndicator.IsRunning = false;
+        InitializeEmailRepository(emailService, options).Wait();
+        InitializeGroupingListView();
+        InitializeEmailListView();
     }
 
     #endregion
@@ -35,6 +39,7 @@ public partial class MainPage
     #region Variables
 
     private readonly IList<EmailGrouping> _selectionCache;
+    private readonly EmailRepository _viewModel;
 
     #endregion
 
@@ -42,12 +47,12 @@ public partial class MainPage
 
     private void Popup_Clicked(object sender, EventArgs e)
     {
-        if (listView.SelectedItems == null)
+        if (groupingListView.SelectedItems == null)
         {
             return;
         }
 
-        foreach (var selectedItem in listView.SelectedItems)
+        foreach (var selectedItem in groupingListView.SelectedItems)
         {
             if (selectedItem is not EmailGrouping item)
             {
@@ -62,29 +67,68 @@ public partial class MainPage
 
     private void ListView_OnSelectionChanged(object sender, ItemSelectionChangedEventArgs e)
     {
-        if (listView.SelectedItems != null) btnDelete.IsEnabled = listView.SelectedItems.Any();
+        if (groupingListView.SelectedItems == null)
+        {
+            return;
+        }
+
+        btnDelete.IsEnabled = groupingListView.SelectedItems.Any();
+
+        EmailGrouping[] emailGroupings = groupingListView.SelectedItems.Cast<EmailGrouping>().ToArray();
+        int totalEmails = emailGroupings.Sum(grouping => grouping.Total);
+        lblSelectionTotal.Text = $"Total emails selected: {totalEmails}";
+
+        if (!emailGroupings.Any())
+        {
+            _viewModel.Emails.Clear();
+            return;
+        }
+        
+        foreach (Email email in emailGroupings.SelectMany(g => g.Emails))
+        {
+            _viewModel.Emails.Add(email);
+        }
     }
 
     #endregion
 
     #region Helper Methods
 
-    private static EmailRepository InitializeEmailRepository(IEmailService emailService, MessagesOptions options)
+    private async Task InitializeEmailRepository(IEmailService emailService, IMessagesOptions options)
     {
-        EmailGroupingCollection grouping = emailService.ListEmails(options);
-        EmailRepository viewModel = new EmailRepository();
+        EmailGroupingCollection grouping = await emailService.ListEmails(options);
         foreach (var email in grouping.GetGroupings().OrderByDescending(g => g.Total))
         {
-            viewModel.Emails.Add(email);
+            _viewModel.EmailGroups.Add(email);
         }
-
-        return viewModel;
     }
 
-    private void InitializeListView(EmailRepository viewModel)
+    private void InitializeEmailListView()
     {
-        listView.ItemsSource = viewModel.Emails;
-        listView.ItemTemplate = new DataTemplate(() =>
+        emailListView.ItemsSource = _viewModel.Emails;
+        emailListView.ItemTemplate = new DataTemplate(() =>
+        {
+            var grid = new Grid();
+            grid.RowDefinitions.Add(new RowDefinition());
+            grid.RowDefinitions.Add(new RowDefinition());
+            var name = new Label { FontAttributes = FontAttributes.Bold, TextColor = Colors.Black, FontSize = 18 };
+            name.SetBinding(Label.TextProperty, new Binding("Name"));
+            var subject = new Label { TextColor = Colors.Gray, FontSize = 12 };
+            subject.SetBinding(Label.TextProperty, new Binding("Subject"));
+
+            grid.Children.Add(name);
+            grid.Children.Add(subject);
+            grid.SetRow(name, 0);
+            grid.SetRow(subject, 1);
+
+            return grid;
+        });
+    }
+
+    private void InitializeGroupingListView()
+    {
+        groupingListView.ItemsSource = _viewModel.EmailGroups;
+        groupingListView.ItemTemplate = new DataTemplate(() =>
         {
             var grid = new Grid();
             grid.RowDefinitions.Add(new RowDefinition());
@@ -103,9 +147,8 @@ public partial class MainPage
         });
     }
 
-
     #endregion
-    
+
     #region Helper Classes
 
     // TODO: bind IMessagesOptions to the UI controls

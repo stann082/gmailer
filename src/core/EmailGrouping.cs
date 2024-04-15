@@ -31,19 +31,4 @@ public class EmailGrouping
 
     #endregion
 
-    #region Public Methods
-
-    public string? GetName()
-    {
-        Email? email = Emails.FirstOrDefault();
-        if (email == null)
-        {
-            return string.Empty;
-        }
-
-        return !string.IsNullOrEmpty(email.Name) ? email.Name : email.Address;
-    }
-
-    #endregion
-
 }

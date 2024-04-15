@@ -7,8 +7,8 @@ namespace service;
 public interface IEmailService
 {
     
-    string DeleteGroupings(IEnumerable<EmailGrouping> groupings);
-    EmailGroupingCollection ListEmails(IMessagesOptions options);
-    IEnumerable<Label> ListLabels();
+    Task<string> DeleteGroupings(IEnumerable<EmailGrouping> groupings);
+    Task<EmailGroupingCollection> ListEmails(IMessagesOptions options);
+    Task<IEnumerable<Label>> ListLabels();
     
 }

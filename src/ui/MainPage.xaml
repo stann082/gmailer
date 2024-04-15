@@ -12,9 +12,7 @@
     </ContentPage.BindingContext>
     
     <StackLayout>
-        <core:SfBusyIndicator x:Name="busyIndicator"
-                              AnimationType="CircularMaterial"
-                              Title="Loading..." />
+        <Label x:Name="lblSelectionTotal" />
         <Button x:Name="btnDelete" 
                 Text="Delete" 
                 VerticalOptions="Start" 
@@ -36,10 +34,17 @@
             </sfPopup:SfPopup.ContentTemplate>
         </sfPopup:SfPopup>
     
-        <sfList:SfListView x:Name="listView" 
+        <sfList:SfListView x:Name="groupingListView" 
                                AutoFitMode="DynamicHeight"
                                BackgroundColor="White"
                                SelectionMode="Multiple"
+                               ItemsSource="{Binding EmailRepository.EmailGroups}"
+                               SelectionChanged="ListView_OnSelectionChanged">
+        </sfList:SfListView>
+        <sfList:SfListView x:Name="emailListView" 
+                               AutoFitMode="DynamicHeight"
+                               BackgroundColor="White"
+                               SelectionMode="None"
                                ItemsSource="{Binding EmailRepository.Emails}"
                                SelectionChanged="ListView_OnSelectionChanged">
         </sfList:SfListView>

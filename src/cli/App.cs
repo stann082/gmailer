@@ -52,7 +52,7 @@ public class App
     {
         try
         {
-            IEnumerable<Label> labels = _emailService.ListLabels();
+            IEnumerable<Label> labels = _emailService.ListLabels().GetAwaiter().GetResult();
             foreach (Label label in labels)
             {
                 Console.WriteLine(label.Name);
@@ -71,8 +71,7 @@ public class App
     {
         if (opts.Label == "all")
         {
-            Console.WriteLine("Trying to fetch all messages results in a rate limit exception. Do not use it until you figure out how to handle it.");
-            return 1;
+            Console.WriteLine("Trying to fetch all messages may result in a rate limit exception. Use at your own risk.");
         }
 
         if (opts.Recent > 500)
@@ -81,7 +80,7 @@ public class App
             return 1;
         }
 
-        EmailGroupingCollection grouping = _emailService.ListEmails(opts);
+        EmailGroupingCollection grouping = _emailService.ListEmails(opts).GetAwaiter().GetResult();
         if (opts.ShouldCacheEmails)
         {
             Console.WriteLine($"Cached {grouping.GetEmailsTotal()} emails");
@@ -101,7 +100,7 @@ public class App
         int count = 1;
         foreach (var group in grouping.GetGroupings())
         {
-            string output = $"{count}: {group.GetName()} ({group.Total})";
+            string output = $"{count}: {group.Domain} ({group.Total})";
             Console.WriteLine(output);
             count++;
         }

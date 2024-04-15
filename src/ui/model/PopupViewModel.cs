@@ -35,7 +35,7 @@ public class PopupViewModel
 
     private void PopupAccept()
     {
-        string response = _emailService.DeleteGroupings(_selectionCache.ToArray());
+        string response = _emailService.DeleteGroupings(_selectionCache.ToArray()).GetAwaiter().GetResult();
         if (string.IsNullOrEmpty(response))
         {
             

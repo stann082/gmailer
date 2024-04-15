@@ -38,24 +38,33 @@ public class EmailService : IEmailService
 
     #region Public Methods
 
-    public string DeleteGroupings(IEnumerable<EmailGrouping> groupings)
+    public async Task<string> DeleteGroupings(IEnumerable<EmailGrouping> groupings)
     {
         BatchDeleteMessagesRequest messagesRequest = new BatchDeleteMessagesRequest();
         messagesRequest.Ids = new List<string>();
-        foreach (Email email in groupings.SelectMany(g => g.Emails))
+
+        string?[] emailIds = groupings.SelectMany(g => g.Emails).Select(e => e.Id).ToArray();
+        IEnumerable<IEnumerable<string?>> idBatches = emailIds.Batch(1000);
+        foreach (IEnumerable<string?> idBatch in idBatches)
         {
-            messagesRequest.Ids.Add(email.Id);
+            messagesRequest.Ids.Clear();
+            foreach (string? id in idBatch)
+            {
+                messagesRequest.Ids.Add(id);
+            }
+
+            var request = _service.Users.Messages.BatchDelete(messagesRequest, "me");
+            return await request.ExecuteAsync();
         }
 
-        var request = _service.Users.Messages.BatchDelete(messagesRequest, "me");
-        return request.ExecuteAsync().GetAwaiter().GetResult();
+        return string.Empty;
     }
 
-    public EmailGroupingCollection ListEmails(IMessagesOptions options)
+    public async Task<EmailGroupingCollection> ListEmails(IMessagesOptions options)
     {
         EmailGroupingCollection grouping = new EmailGroupingCollection();
 
-        Email[]? emails = RetrieveEmails(options);
+        Email[]? emails = await RetrieveEmails(options);
         emails.DetermineDomains();
         if (options.ShouldCacheEmails)
         {
@@ -81,10 +90,10 @@ public class EmailService : IEmailService
         return grouping;
     }
 
-    public IEnumerable<Label> ListLabels()
+    public async Task<IEnumerable<Label>> ListLabels()
     {
         var request = _service.Users.Labels.List("me");
-        var response = request.ExecuteAsync().GetAwaiter().GetResult();
+        var response = await request.ExecuteAsync();
         if (response?.Labels == null)
         {
             throw new AggregateException("Could not return labels.");
@@ -189,7 +198,7 @@ public class EmailService : IEmailService
         LoadMessages(messages, response.NextPageToken, options);
     }
 
-    private Email[]? RetrieveEmails(IMessagesOptions options)
+    private async Task<Email[]?> RetrieveEmails(IMessagesOptions options)
     {
         if (options.ShouldGetCache)
         {
@@ -207,11 +216,12 @@ public class EmailService : IEmailService
         int batchCount = 1;
         foreach (MessageBatch messageBatch in messageBatches)
         {
-            Console.WriteLine($"Processing {batchCount} out of {messageBatches.Count}");
-            emails.AddRange(FetchEmails(messageBatch).GetAwaiter().GetResult());
+            Console.Write($"\rProcessing {batchCount} out of {messageBatches.Count}");
+            emails.AddRange(await FetchEmails(messageBatch));
             batchCount++;
         }
-        
+
+        Console.WriteLine();
         return emails.ToArray();
     }
 
