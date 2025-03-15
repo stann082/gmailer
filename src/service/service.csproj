@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
@@ -15,8 +15,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Google.Apis.Gmail.v1" Version="1.60.0.3056" />
-    <PackageReference Include="StackExchange.Redis" Version="2.6.111" />
+    <PackageReference Include="Google.Apis.Gmail.v1" Version="1.68.0.3427" />
+    <PackageReference Include="StackExchange.Redis" Version="2.8.31" />
   </ItemGroup>
 
   <ItemGroup>
