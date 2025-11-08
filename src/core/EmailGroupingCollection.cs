@@ -3,18 +3,9 @@
 public class EmailGroupingCollection
 {
 
-    #region Constructors
-
-    public EmailGroupingCollection()
-    {
-        _groupings = new List<EmailGrouping>();
-    }
-
-    #endregion
-    
     #region Variables
 
-    private readonly List<EmailGrouping> _groupings;
+    private readonly List<EmailGrouping> _groupings = new();
 
     #endregion
 

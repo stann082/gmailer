@@ -3,6 +3,5 @@
     <Project Path="src/cli/cli.csproj" />
     <Project Path="src/core/core.csproj" />
     <Project Path="src/service/service.csproj" />
-    <Project Path="src/web/web.csproj" />
   </Folder>
 </Solution>
