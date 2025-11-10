@@ -16,7 +16,7 @@
 
   <ItemGroup>
     <PackageReference Include="CommandLineParser" Version="2.9.1" />
-    <PackageReference Include="Google.Apis.Gmail.v1" Version="1.68.0.3427" />
+    <PackageReference Include="Google.Apis.Gmail.v1" Version="1.70.0.3833" />
   </ItemGroup>
 
 </Project>
