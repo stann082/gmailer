@@ -37,7 +37,7 @@ public class App(IEmailService emailService)
     {
         try
         {
-            IEnumerable<Label> labels = emailService.ListLabels().GetAwaiter().GetResult();
+            IEnumerable<Label> labels = emailService.ListLabelsAsync().GetAwaiter().GetResult();
             foreach (Label label in labels)
             {
                 Console.WriteLine(label.Name);
@@ -65,7 +65,7 @@ public class App(IEmailService emailService)
             return 1;
         }
 
-        EmailGroupingCollection grouping = emailService.ListEmails(opts).GetAwaiter().GetResult();
+        EmailGroupingCollection grouping = emailService.ListEmailsAsync(opts).GetAwaiter().GetResult();
         if (opts.ShouldCacheEmails)
         {
             Console.WriteLine($"Cached {grouping.GetEmailsTotal()} emails");

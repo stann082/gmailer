@@ -12,13 +12,4 @@ public class EmailGrouping(IGrouping<string?, Email> group)
 
     #endregion
 
-    #region Overridden Methods
-
-    public override string ToString()
-    {
-        return $"{Domain} ({Total}) Id: {Id}";
-    }
-
-    #endregion
-
 }

@@ -1,5 +1,6 @@
 ﻿using core;
 using service;
+using Email = core.Email;
 
 namespace ui;
 
@@ -29,24 +30,19 @@ public partial class MainPage
     {
         if (EmailList.SelectedItems?.Count > 0)
         {
-            foreach (core.Email item in EmailList.SelectedItems)
-            {
-                // _db.KeyDelete($"email:{item.Id}");
-            }
+            Email[]? emails = EmailList.SelectedItems as Email[];
+            if (emails == null) return;
+            _emailService.DeleteEmailsAsync(emails).GetAwaiter().GetResult();
         }
         else if (GroupList.SelectedItem is EmailGrouping group)
         {
-            // foreach (var item in group.Emails)
-            //     _db.KeyDelete($"email:{item.Id}");
-            //
-            // _groups.Remove(group);
-            // GroupList.ItemsSource = null;
-            // GroupList.ItemsSource = _groups;
+            _emailService.DeleteGroupingsAsync([group]).GetAwaiter().GetResult();
         }
     }
 
     private void OnGroupSelected(object? sender, SelectionChangedEventArgs e)
     {
+        EmailList.SelectedItems = [];
         if (e.CurrentSelection.FirstOrDefault() is EmailGrouping selected)
         {
             EmailList.ItemsSource = selected.Emails;
@@ -54,7 +50,9 @@ public partial class MainPage
     }
     
     #endregion
-    
+
+    #region Helper Methods
+
     private void LoadGroups()
     {
         UIOtions options = new UIOtions
@@ -63,8 +61,10 @@ public partial class MainPage
             ShouldGetCache = true
         };
 
-        EmailGroupingCollection grouping = _emailService.ListEmails(options).GetAwaiter().GetResult();
+        EmailGroupingCollection grouping = _emailService.ListEmailsAsync(options).GetAwaiter().GetResult();
         GroupList.ItemsSource = grouping.GetGroupings();
     }
+
+    #endregion
 
 }

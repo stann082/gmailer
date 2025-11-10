@@ -38,29 +38,32 @@ public class EmailService : IEmailService
 
     #region Public Methods
 
-    public async Task<string> DeleteGroupings(IEnumerable<EmailGrouping> groupings)
+    public async Task DeleteEmailsAsync(IEnumerable<Email> emails)
     {
-        BatchDeleteMessagesRequest messagesRequest = new BatchDeleteMessagesRequest();
-        messagesRequest.Ids = new List<string>();
-
-        string?[] emailIds = groupings.SelectMany(g => g.Emails).Select(e => e.Id).ToArray();
+        BatchDeleteMessagesRequest messagesRequest = new BatchDeleteMessagesRequest { Ids = new List<string>() };
+        string?[] emailIds = emails.Select(e => e.Id).ToArray();
         IEnumerable<IEnumerable<string?>> idBatches = emailIds.Batch(1000);
         foreach (IEnumerable<string?> idBatch in idBatches)
         {
-            messagesRequest.Ids.Clear();
-            foreach (string? id in idBatch)
-            {
-                messagesRequest.Ids.Add(id);
-            }
-
-            var request = _service.Users.Messages.BatchDelete(messagesRequest, "me");
-            return await request.ExecuteAsync();
+            // TODO: Rework Redis caching
+            // messagesRequest.Ids.Clear();
+            // foreach (string? id in idBatch)
+            // {
+            //     messagesRequest.Ids.Add(id);
+            // }
+            //
+            // var request = _service.Users.Messages.BatchDelete(messagesRequest, "me");
+            // await request.ExecuteAsync();
+            // await _cache.KeyDeleteAsync(idBatch);
         }
-
-        return string.Empty;
     }
 
-    public async Task<EmailGroupingCollection> ListEmails(IMessagesOptions options)
+    public async Task DeleteGroupingsAsync(IEnumerable<EmailGrouping> groupings)
+    {
+        await DeleteEmailsAsync(groupings.SelectMany(g => g.Emails));
+    }
+
+    public async Task<EmailGroupingCollection> ListEmailsAsync(IMessagesOptions options)
     {
         EmailGroupingCollection grouping = new EmailGroupingCollection();
 
@@ -91,7 +94,7 @@ public class EmailService : IEmailService
         return grouping;
     }
 
-    public async Task<IEnumerable<Label>> ListLabels()
+    public async Task<IEnumerable<Label>> ListLabelsAsync()
     {
         var request = _service.Users.Labels.List("me");
         var response = await request.ExecuteAsync();
