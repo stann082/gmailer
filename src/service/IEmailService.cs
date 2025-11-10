@@ -7,8 +7,10 @@ namespace service;
 public interface IEmailService
 {
     
-    Task DeleteEmailsAsync(IEnumerable<Email> emails);
-    Task DeleteGroupingsAsync(IEnumerable<EmailGrouping> groupings);
+    Task DeleteEmailAsync(string ids);
+    Task DeleteEmailsAsync(IEnumerable<Email> emails, string label);
+    Task DeleteGroupingsAsync(IEnumerable<EmailGrouping> groupings, string label);
+    Task InitializeAsync();
     Task<EmailGroupingCollection> ListEmailsAsync(IMessagesOptions options);
     Task<IEnumerable<Label>> ListLabelsAsync();
     

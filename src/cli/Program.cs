@@ -9,15 +9,15 @@ public static class Program
 
     #region Main Method
 
-    public static int Main(string[] args)
+    public static async Task<int> Main(string[] args)
     {
-        var multiplexer = ConnectionMultiplexer.Connect("localhost");
+        var multiplexer = await ConnectionMultiplexer.ConnectAsync("localhost");
         var services = new ServiceCollection()
             .AddSingleton<App>()
             .AddSingleton<IConnectionMultiplexer>(multiplexer)
             .AddSingleton<IEmailService, EmailService>()
             .BuildServiceProvider();
-        return services.GetService<App>()!.RunApp(args);
+        return await services.GetService<App>()!.RunApp(args);
     }
 
     #endregion

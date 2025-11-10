@@ -12,32 +12,30 @@ public class App(IEmailService emailService)
 
     #region Public Methods
 
-    public int RunApp(IEnumerable<string> args)
+    public async Task<int> RunApp(IEnumerable<string> args)
     {
-        return Parser.Default.ParseArguments<MessagesOptions,
-                ComposeOptions,
-                LabelsOptions>(args)
-            .MapResult(
-                (MessagesOptions opts) => ListEmails(opts),
-                (ComposeOptions opts) => ComposeEmail(opts),
-                (LabelsOptions opts) => Labels(opts),
-                errs => 1);
+        await emailService.InitializeAsync();
+        return await Parser.Default.ParseArguments<MessagesOptions, ComposeOptions, LabelsOptions>(args).MapResult(
+                async (MessagesOptions opts) => await ListEmails(opts),
+                async (ComposeOptions opts) => await ComposeEmail(opts),
+                async (LabelsOptions opts) => await Labels(opts),
+                _ => Task.FromResult(1));
     }
 
     #endregion
 
     #region Helper Methods
 
-    private int ComposeEmail(ComposeOptions opts)
+    private async Task<int> ComposeEmail(ComposeOptions opts)
     {
-        throw new NotImplementedException();
+        return await Task.FromResult(0);
     }
 
-    private int Labels(LabelsOptions opts)
+    private async Task<int> Labels(LabelsOptions opts)
     {
         try
         {
-            IEnumerable<Label> labels = emailService.ListLabelsAsync().GetAwaiter().GetResult();
+            IEnumerable<Label> labels = await emailService.ListLabelsAsync();
             foreach (Label label in labels)
             {
                 Console.WriteLine(label.Name);
@@ -52,8 +50,15 @@ public class App(IEmailService emailService)
         return 0;
     }
 
-    private int ListEmails(IMessagesOptions opts)
+    private async Task<int> ListEmails(IMessagesOptions opts)
     {
+        if (!string.IsNullOrEmpty(opts.MessageToDelete))
+        {
+            string id = opts.MessageToDelete;
+            await emailService.DeleteEmailAsync(id);
+            return 0;
+        }
+        
         if (opts.Label == "all")
         {
             Console.WriteLine("Trying to fetch all messages may result in a rate limit exception. Use at your own risk.");
@@ -65,7 +70,7 @@ public class App(IEmailService emailService)
             return 1;
         }
 
-        EmailGroupingCollection grouping = emailService.ListEmailsAsync(opts).GetAwaiter().GetResult();
+        EmailGroupingCollection grouping = await emailService.ListEmailsAsync(opts);
         if (opts.ShouldCacheEmails)
         {
             Console.WriteLine($"Cached {grouping.GetEmailsTotal()} emails");

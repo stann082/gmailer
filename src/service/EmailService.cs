@@ -10,57 +10,84 @@ using StackExchange.Redis;
 
 namespace service;
 
-public class EmailService : IEmailService
+public class EmailService(IConnectionMultiplexer redis) : IEmailService
 {
-
-    #region Constructors
-
-    public EmailService(IConnectionMultiplexer redis)
-    {
-        _cache = redis.GetDatabase();
-
-        var credential = Authenticate().GetAwaiter().GetResult();
-        _service = new GmailService(new BaseClientService.Initializer
-        {
-            HttpClientInitializer = credential,
-            ApplicationName = "Gmailer"
-        });
-    }
-
-    #endregion
-
     #region Variables
 
-    private readonly IDatabase _cache;
-    private readonly GmailService _service;
+    private readonly IDatabase _cache = redis.GetDatabase();
+    private GmailService? _service;
 
     #endregion
 
     #region Public Methods
 
-    public async Task DeleteEmailsAsync(IEnumerable<Email> emails)
+    public async Task DeleteEmailAsync(string id)
     {
-        BatchDeleteMessagesRequest messagesRequest = new BatchDeleteMessagesRequest { Ids = new List<string>() };
-        string?[] emailIds = emails.Select(e => e.Id).ToArray();
-        IEnumerable<IEnumerable<string?>> idBatches = emailIds.Batch(1000);
-        foreach (IEnumerable<string?> idBatch in idBatches)
+        if (_service == null)
         {
-            // TODO: Rework Redis caching
-            // messagesRequest.Ids.Clear();
-            // foreach (string? id in idBatch)
-            // {
-            //     messagesRequest.Ids.Add(id);
-            // }
-            //
-            // var request = _service.Users.Messages.BatchDelete(messagesRequest, "me");
-            // await request.ExecuteAsync();
-            // await _cache.KeyDeleteAsync(idBatch);
+            Console.WriteLine("Gmail service is not initialized.");
+            return;
+        }
+        
+        var request = _service.Users.Messages.Delete("stanley.bennett@gmail.com", id);
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+        try
+        {
+            Console.WriteLine("Deleting a message...");
+            await request.ExecuteAsync(cts.Token).ConfigureAwait(false);
+            Console.WriteLine("Message successfully deleted...");
+        }
+        catch (TaskCanceledException)
+        {
+            Console.WriteLine("Request timed out.");
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Gmail delete failed: {ex}");
+            throw;
         }
     }
 
-    public async Task DeleteGroupingsAsync(IEnumerable<EmailGrouping> groupings)
+    public async Task DeleteEmailsAsync(IEnumerable<Email> emails, string label)
     {
-        await DeleteEmailsAsync(groupings.SelectMany(g => g.Emails));
+        if (_service == null)
+        {
+            Console.WriteLine("Gmail service is not initialized.");
+            return;
+        }
+        
+        BatchDeleteMessagesRequest messagesRequest = new BatchDeleteMessagesRequest { Ids = new List<string>() };
+        string?[] emailIds = emails.Select(e => e.Id).ToArray();
+        var idBatches = emailIds.Batch(1000);
+        foreach (IEnumerable<string?> idBatch in idBatches)
+        {
+            messagesRequest.Ids.Clear();
+            foreach (string? id in idBatch)
+            {
+                messagesRequest.Ids.Add(id);
+            }
+
+            var request = _service.Users.Messages.BatchDelete(messagesRequest, "me");
+            await request.ExecuteAsync();
+            string emailsValue = JsonConvert.SerializeObject(emails);
+            _cache.StringSet(label, emailsValue);
+        }
+    }
+
+    public async Task DeleteGroupingsAsync(IEnumerable<EmailGrouping> groupings, string label)
+    {
+        await DeleteEmailsAsync(groupings.SelectMany(g => g.Emails), label);
+    }
+    
+    public async Task InitializeAsync()
+    {
+        var credential = await Authenticate();
+        _service = new GmailService(new BaseClientService.Initializer
+        {
+            HttpClientInitializer = credential,
+            ApplicationName = "Gmailer"
+        });
     }
 
     public async Task<EmailGroupingCollection> ListEmailsAsync(IMessagesOptions options)
@@ -96,6 +123,12 @@ public class EmailService : IEmailService
 
     public async Task<IEnumerable<Label>> ListLabelsAsync()
     {
+        if (_service == null)
+        {
+            Console.WriteLine("Gmail service is not initialized.");
+            return [];
+        }
+        
         var request = _service.Users.Labels.List("me");
         var response = await request.ExecuteAsync();
         if (response?.Labels == null)
@@ -125,7 +158,7 @@ public class EmailService : IEmailService
                 ClientId = clientId,
                 ClientSecret = clientSecret
             },
-            new[] { GmailService.Scope.MailGoogleCom },
+            [GmailService.Scope.MailGoogleCom],
             "user",
             CancellationToken.None,
             new FileDataStore("GmailAPI"));
@@ -134,6 +167,12 @@ public class EmailService : IEmailService
 
     private async Task<Email[]> FetchEmails(MessageBatch batch)
     {
+        if (_service == null)
+        {
+            Console.WriteLine("Gmail service is not initialized.");
+            return [];
+        }
+        
         List<Email> emails = new List<Email>();
 
         foreach (var id in batch.MessageIds)
@@ -152,8 +191,14 @@ public class EmailService : IEmailService
         return emails.ToArray();
     }
 
-    private void LoadMessages(ICollection<MessageBatch> messages, string pageToken, IMessagesOptions options)
+    private async Task LoadMessages(ICollection<MessageBatch> messages, string pageToken, IMessagesOptions options)
     {
+        if (_service == null)
+        {
+            Console.WriteLine("Gmail service is not initialized.");
+            return;
+        }
+        
         if (string.IsNullOrEmpty(pageToken))
         {
             return;
@@ -187,7 +232,7 @@ public class EmailService : IEmailService
             request.Q = "is:unread";
         }
 
-        var response = request.ExecuteAsync().GetAwaiter().GetResult();
+        var response = await request.ExecuteAsync();
         if (response?.Messages == null)
         {
             throw new AggregateException("Could not return messages.");
@@ -199,7 +244,7 @@ public class EmailService : IEmailService
             return;
         }
 
-        LoadMessages(messages, response.NextPageToken, options);
+        await LoadMessages(messages, response.NextPageToken, options);
     }
 
     private async Task<Email[]?> RetrieveEmails(IMessagesOptions options)
@@ -213,7 +258,7 @@ public class EmailService : IEmailService
 
         Console.WriteLine("Fetching message ids");
         List<MessageBatch> messageBatches = new List<MessageBatch>();
-        LoadMessages(messageBatches, "first", options);
+        await LoadMessages(messageBatches, "first", options);
 
         List<Email> emails = new List<Email>();
 
@@ -230,5 +275,4 @@ public class EmailService : IEmailService
     }
 
     #endregion
-
 }

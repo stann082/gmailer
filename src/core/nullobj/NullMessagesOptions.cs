@@ -5,14 +5,14 @@ namespace core.nullobj;
 public class NullMessagesOptions : IMessagesOptions
 {
 
-    public bool IsDescending { get; set;  }
-    public virtual string? Label { get; set; }
-    public virtual int ResultsPePage { get; set;  }
-    public virtual int Recent { get; set; }
-    public virtual bool ShouldCacheEmails { get; set; }
-    public virtual bool ShouldDelete { get; set; }
-    public virtual bool ShouldGetCache { get; set; }
-    public virtual bool ShouldGroup { get; set; }
-    public virtual bool Unread { get; set; }
+    public virtual bool IsDescending { get; set;  } = false;
+    public virtual string Label { get; set; } = string.Empty;
+    public virtual string MessageToDelete { get; set; } = string.Empty;
+    public virtual int ResultsPePage { get; set; } = 0;
+    public virtual int Recent { get; set; } = 0;
+    public virtual bool ShouldCacheEmails { get; set; } = false;
+    public virtual bool ShouldGetCache { get; set; } = true;
+    public virtual bool ShouldGroup { get; set; } = true;
+    public virtual bool Unread { get; set; } = true;
     
 }
