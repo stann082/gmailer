@@ -7,23 +7,8 @@ using service;
 
 namespace cli;
 
-public class App
+public class App(IEmailService emailService)
 {
-
-    #region Constructors
-
-    public App(IEmailService emailService)
-    {
-        _emailService = emailService;
-    }
-
-    #endregion
-
-    #region Variables
-
-    private readonly IEmailService _emailService;
-
-    #endregion
 
     #region Public Methods
 
@@ -52,7 +37,7 @@ public class App
     {
         try
         {
-            IEnumerable<Label> labels = _emailService.ListLabels().GetAwaiter().GetResult();
+            IEnumerable<Label> labels = emailService.ListLabels().GetAwaiter().GetResult();
             foreach (Label label in labels)
             {
                 Console.WriteLine(label.Name);
@@ -80,7 +65,7 @@ public class App
             return 1;
         }
 
-        EmailGroupingCollection grouping = _emailService.ListEmails(opts).GetAwaiter().GetResult();
+        EmailGroupingCollection grouping = emailService.ListEmails(opts).GetAwaiter().GetResult();
         if (opts.ShouldCacheEmails)
         {
             Console.WriteLine($"Cached {grouping.GetEmailsTotal()} emails");

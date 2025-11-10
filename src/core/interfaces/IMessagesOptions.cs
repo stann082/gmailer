@@ -3,6 +3,7 @@
 public interface IMessagesOptions
 {
     
+    bool IsDescending { get; }
     string? Label { get; }
     int ResultsPePage { get; }
     int Recent { get; }

@@ -78,9 +78,10 @@ public class EmailService : IEmailService
             throw new AggregateException("Could not retrieve emails");
         }
 
-        var groupedEmails = emails
-            .GroupBy(e => e.Domain)
-            .OrderBy(g => g.Count());
+        var groupedEmails = emails.GroupBy(e => e.Domain);
+        groupedEmails = options.IsDescending
+            ? groupedEmails.OrderByDescending(g => g.Count())
+            : groupedEmails.OrderBy(g => g.Count());
 
         foreach (IGrouping<string?, Email> group in groupedEmails)
         {

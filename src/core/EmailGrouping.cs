@@ -1,33 +1,23 @@
 ﻿namespace core;
 
-public class EmailGrouping
+public class EmailGrouping(IGrouping<string?, Email> group)
 {
-
-    #region Constructors
-
-    public EmailGrouping(IGrouping<string?, Email> group)
-    {
-        Id = Guid.NewGuid().ToString();
-        Emails = group.ToArray();
-        Domain = group.Key;
-        Total = group.Count();
-    }
-
-    public EmailGrouping(Email[] emails)
-    {
-        Id = Guid.NewGuid().ToString();
-        Emails = emails;
-        Total = emails.Length;
-    }
-
-    #endregion
 
     #region Properties
 
-    public string? Domain { get; }
-    public Email[] Emails { get; }
-    public string Id { get; }
-    public int Total { get; }
+    public string? Domain { get; } = group.Key;
+    public Email[] Emails { get; } = group.ToArray();
+    public string Id { get; } = Guid.NewGuid().ToString();
+    public int Total { get; } = group.Count();
+
+    #endregion
+
+    #region Overridden Methods
+
+    public override string ToString()
+    {
+        return $"{Domain} ({Total}) Id: {Id}";
+    }
 
     #endregion
 

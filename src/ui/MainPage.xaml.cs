@@ -1,23 +1,70 @@
-﻿namespace ui;
+﻿using core;
+using service;
 
-public partial class MainPage : ContentPage
+namespace ui;
+
+public partial class MainPage
 {
-    int count = 0;
 
-    public MainPage()
+    #region Constructors
+
+    public MainPage(IEmailService emailService)
     {
         InitializeComponent();
+        _emailService = emailService;
+        LoadGroups();
     }
 
-    private void OnCounterClicked(object sender, EventArgs e)
+    #endregion
+
+    #region Variables
+
+    private readonly IEmailService _emailService;
+
+    #endregion
+
+    #region Event Handlers
+
+    private void OnDeleteClicked(object sender, EventArgs e)
     {
-        count++;
-
-        if (count == 1)
-            CounterBtn.Text = $"Clicked {count} time";
-        else
-            CounterBtn.Text = $"Clicked {count} times";
-
-        SemanticScreenReader.Announce(CounterBtn.Text);
+        if (EmailList.SelectedItems?.Count > 0)
+        {
+            foreach (core.Email item in EmailList.SelectedItems)
+            {
+                // _db.KeyDelete($"email:{item.Id}");
+            }
+        }
+        else if (GroupList.SelectedItem is EmailGrouping group)
+        {
+            // foreach (var item in group.Emails)
+            //     _db.KeyDelete($"email:{item.Id}");
+            //
+            // _groups.Remove(group);
+            // GroupList.ItemsSource = null;
+            // GroupList.ItemsSource = _groups;
+        }
     }
+
+    private void OnGroupSelected(object? sender, SelectionChangedEventArgs e)
+    {
+        if (e.CurrentSelection.FirstOrDefault() is EmailGrouping selected)
+        {
+            EmailList.ItemsSource = selected.Emails;
+        }
+    }
+    
+    #endregion
+    
+    private void LoadGroups()
+    {
+        UIOtions options = new UIOtions
+        {
+            Label = "inbox",
+            ShouldGetCache = true
+        };
+
+        EmailGroupingCollection grouping = _emailService.ListEmails(options).GetAwaiter().GetResult();
+        GroupList.ItemsSource = grouping.GetGroupings();
+    }
+
 }

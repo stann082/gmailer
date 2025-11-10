@@ -7,12 +7,14 @@ namespace cli.options;
 public class MessagesOptions : IMessagesOptions
 {
 
+    public bool IsDescending => false;
+
     [Option('c', "cache", Default = false, HelpText = "Cache emails.")]
     public bool ShouldCacheEmails { get; set; }
     
     [Option('d', "delete", Default = false, HelpText = "Deletes selected messages.")]
     public bool ShouldDelete { get; set; }
-    
+
     [Option("label", Default = "inbox", HelpText = "Filter by label.")]
     public string? Label { get; set; }
 

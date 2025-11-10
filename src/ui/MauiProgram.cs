@@ -1,4 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
+using service;
+using StackExchange.Redis;
 
 namespace ui;
 
@@ -19,6 +21,9 @@ public static class MauiProgram
         builder.Logging.AddDebug();
 #endif
 
+        builder.Services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect("localhost"));
+        builder.Services.AddSingleton<IEmailService, EmailService>();
+        builder.Services.AddSingleton<MainPage>();
         return builder.Build();
     }
 }
