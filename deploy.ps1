@@ -12,6 +12,7 @@ if (-not ($cli -or $ui)) {
 # --- CLI Publish ---
 if ($cli) {
     Write-Host "`nDeploying CLI app" -ForegroundColor Cyan
+
     Remove-Item .\pub\ -Recurse -ErrorAction SilentlyContinue
     dotnet publish .\src\cli\cli.csproj -c Release -o pub -v quiet
 
@@ -23,9 +24,14 @@ if ($cli) {
 # --- UI Publish ---
 if ($ui) {
     Write-Host "`nDeploying MAUI app" -ForegroundColor Cyan
-    $exePath = "$env:LOCALAPPDATA\Gmailer\Gmailer.exe"
+
+    $localApp = "$env:LOCALAPPDATA\Gmailer"
+    Remove-Item $localApp -Recurse -ErrorAction SilentlyContinue
+    dotnet publish .\src\ui\ui.csproj -f net9.0-windows10.0.19041.0 -c Release -o $localApp -v quiet
+
     $desktop = [Environment]::GetFolderPath('Desktop')
     $shortcutPath = Join-Path $desktop 'Gmailer.lnk'
+    Write-Host "Creating shortcut at $shortcutPath"
 
     if (-not (Test-Path $desktop)) {
         New-Item -ItemType Directory -Path $desktop | Out-Null
@@ -35,8 +41,7 @@ if ($ui) {
         Remove-Item $shortcutPath -Force
     }
 
-    Write-Host "Creating shortcut at $shortcutPath"
-
+    $exePath = "$localApp\ui.exe"
     $WshShell = New-Object -ComObject WScript.Shell
     $Shortcut = $WshShell.CreateShortcut($shortcutPath)
     $Shortcut.TargetPath = $exePath
