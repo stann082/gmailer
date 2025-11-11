@@ -1,15 +1,34 @@
-﻿namespace core;
+﻿using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 
-public class EmailGrouping(IGrouping<string?, Email> group)
+namespace core;
+
+public class EmailGrouping : INotifyPropertyChanged
 {
+    
+    public EmailGrouping(IGrouping<string?, Email> group)
+    {
+        Domain = group.Key;
+        Emails = new ObservableCollection<Email>(group.ToList());
+        Emails.CollectionChanged += (_, __) => OnPropertyChanged(nameof(Total));
+    }
 
     #region Properties
 
-    public string? Domain { get; } = group.Key;
-    public Email[] Emails { get; } = group.ToArray();
+    public string? Domain { get; }
+    public ObservableCollection<Email> Emails { get; }
     public string Id { get; } = Guid.NewGuid().ToString();
-    public int Total { get; } = group.Count();
+    public int Total => Emails.Count;
 
     #endregion
 
+    #region INotifyPropertyChanged Implementation
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+
+    #endregion
 }

@@ -13,7 +13,7 @@ public class MessagesOptions : IMessagesOptions
     public bool ShouldCacheEmails { get; set; }
     
     [Option("label", Default = "inbox", HelpText = "Filter by label.")]
-    public string? Label { get; set; }
+    public string Label { get; set; }
 
     [Option('d', "delete", HelpText = "Deletes selected messages.")]
     public string? MessageToDelete { get; set; }

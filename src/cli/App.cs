@@ -52,13 +52,6 @@ public class App(IEmailService emailService)
 
     private async Task<int> ListEmails(IMessagesOptions opts)
     {
-        if (!string.IsNullOrEmpty(opts.MessageToDelete))
-        {
-            string id = opts.MessageToDelete;
-            await emailService.DeleteEmailAsync(id);
-            return 0;
-        }
-        
         if (opts.Label == "all")
         {
             Console.WriteLine("Trying to fetch all messages may result in a rate limit exception. Use at your own risk.");
@@ -88,7 +81,7 @@ public class App(IEmailService emailService)
         }
 
         int count = 1;
-        foreach (var group in grouping.GetGroupings())
+        foreach (var group in grouping.Groupings)
         {
             string output = $"{count}: {group.Domain} ({group.Total})";
             Console.WriteLine(output);

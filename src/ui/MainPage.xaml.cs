@@ -1,4 +1,5 @@
-﻿using core;
+﻿using System.Collections.ObjectModel;
+using core;
 using service;
 using Email = core.Email;
 
@@ -48,10 +49,21 @@ public partial class MainPage
             {
                 Email[] emails = EmailList.SelectedItems.Cast<Email>().ToArray();
                 await _emailService.DeleteEmailsAsync(emails, _options.Label);
+                if (GroupList.SelectedItem is not EmailGrouping currentGroup) return;
+                foreach (var email in emails)
+                {
+                    currentGroup.Emails.Remove(email);
+                }
             }
             else if (GroupList.SelectedItem is EmailGrouping group)
             {
                 await _emailService.DeleteGroupingsAsync([group], _options.Label);
+                if (GroupList.ItemsSource is ObservableCollection<EmailGrouping> groups)
+                {
+                    groups.Remove(group);
+                }
+
+                EmailList.ItemsSource = null;
             }
         }
         catch (Exception ex)
@@ -74,7 +86,7 @@ public partial class MainPage
     private async Task LoadGroupsAsync()
     {
         EmailGroupingCollection grouping = await _emailService.ListEmailsAsync(_options);
-        GroupList.ItemsSource = grouping.GetGroupings();
+        GroupList.ItemsSource = grouping.Groupings;
     }
 
     #endregion

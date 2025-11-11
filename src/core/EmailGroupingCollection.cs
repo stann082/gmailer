@@ -1,34 +1,31 @@
-﻿namespace core;
+﻿using System.Collections.ObjectModel;
+
+namespace core;
 
 public class EmailGroupingCollection
 {
 
-    #region Variables
+    #region Properties
 
-    private readonly List<EmailGrouping> _groupings = new();
+    public ObservableCollection<EmailGrouping> Groupings { get; } = new();
 
     #endregion
-
+    
     #region Public Methods
 
     public void AddGrouping(EmailGrouping grouping)
     {
-        _groupings.Add(grouping);
+        Groupings.Add(grouping);
     }
 
     public Email[] GetEmails()
     {
-        return GetGroupings().SelectMany(g => g.Emails).ToArray();
+        return Groupings.SelectMany(g => g.Emails).ToArray();
     }
-    
+
     public int GetEmailsTotal()
     {
-        return GetEmails().Length;
-    }
-    
-    public EmailGrouping[] GetGroupings()
-    {
-        return _groupings.ToArray();
+        return Groupings.Sum(g => g.Emails.Count);
     }
 
     #endregion

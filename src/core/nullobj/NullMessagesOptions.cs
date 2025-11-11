@@ -7,7 +7,6 @@ public class NullMessagesOptions : IMessagesOptions
 
     public virtual bool IsDescending { get; set;  } = false;
     public virtual string Label { get; set; } = string.Empty;
-    public virtual string MessageToDelete { get; set; } = string.Empty;
     public virtual int ResultsPePage { get; set; } = 0;
     public virtual int Recent { get; set; } = 0;
     public virtual bool ShouldCacheEmails { get; set; } = false;
