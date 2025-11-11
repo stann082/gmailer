@@ -98,6 +98,17 @@ public class EmailService(IConnectionMultiplexer redis) : IEmailService
         var miscEmails = singletons.SelectMany(g => g).ToList();
         var miscGroup = new EmailGrouping("misc", miscEmails);
         grouping.AddGrouping(miscGroup);
+        
+        var resorted = options.IsDescending
+            ? grouping.Groupings.OrderByDescending(g => g.Total).ToList()
+            : grouping.Groupings.OrderBy(g => g.Total).ToList();
+
+        grouping.Groupings.Clear();
+        foreach (var group in resorted)
+        {
+            grouping.Groupings.Add(group);
+        }
+        
         return grouping;
     }
 
