@@ -13,6 +13,13 @@ public class EmailGrouping : INotifyPropertyChanged
         Emails = new ObservableCollection<Email>(group.ToList());
         Emails.CollectionChanged += (_, __) => OnPropertyChanged(nameof(Total));
     }
+    
+    public EmailGrouping(string? domain, IEnumerable<Email> emails)
+    {
+        Domain = domain;
+        Emails = new ObservableCollection<Email>(emails.ToList());
+        Emails.CollectionChanged += (_, __) => OnPropertyChanged(nameof(Total));
+    }
 
     #region Properties
 

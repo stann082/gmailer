@@ -67,6 +67,7 @@ public class EmailService(IConnectionMultiplexer redis) : IEmailService
 
         Email[]? emails = await RetrieveEmails(options);
         emails.DetermineDomains();
+
         if (options.ShouldCacheEmails)
         {
             _cache.KeyDelete(options.Label);
@@ -79,13 +80,24 @@ public class EmailService(IConnectionMultiplexer redis) : IEmailService
             throw new AggregateException("Could not retrieve emails");
         }
 
-        var groupedEmails = emails.GroupBy(e => e.Domain);
-        groupedEmails = options.IsDescending ? groupedEmails.OrderByDescending(g => g.Count()) : groupedEmails.OrderBy(g => g.Count());
-        foreach (IGrouping<string?, Email> group in groupedEmails)
+        var groupedEmails = emails.GroupBy(e => e.Domain).ToList();
+        var singletons = groupedEmails.Where(g => g.Count() == 1).ToList();
+        var normalGroups = groupedEmails.Where(g => g.Count() > 1);
+
+        normalGroups = options.IsDescending
+            ? normalGroups.OrderByDescending(g => g.Count())
+            : normalGroups.OrderBy(g => g.Count());
+
+        foreach (var group in normalGroups)
         {
             grouping.AddGrouping(new EmailGrouping(group));
         }
 
+        if (singletons.Count == 0) return grouping;
+        
+        var miscEmails = singletons.SelectMany(g => g).ToList();
+        var miscGroup = new EmailGrouping("misc", miscEmails);
+        grouping.AddGrouping(miscGroup);
         return grouping;
     }
 
@@ -254,7 +266,7 @@ public class EmailService(IConnectionMultiplexer redis) : IEmailService
         {
             return;
         }
-        
+
         List<Email> newEmails = cachedEmails.Where(e => !emailIds.Contains(e.Id)).ToList();
         string emailsValue = JsonConvert.SerializeObject(newEmails);
         _cache.StringSet(label, emailsValue);
