@@ -57,4 +57,24 @@
       <ProjectReference Include="..\service\service.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <MauiXaml Update="Views\GroupListView.xaml">
+        <SubType>Designer</SubType>
+      </MauiXaml>
+      <MauiXaml Update="Views\EmailListView.xaml">
+        <SubType>Designer</SubType>
+      </MauiXaml>
+    </ItemGroup>
+
+    <ItemGroup>
+      <Compile Update="Views\GroupListView.xaml.cs">
+        <DependentUpon>GroupListView.xaml</DependentUpon>
+        <SubType>Code</SubType>
+      </Compile>
+      <Compile Update="Views\EmailListView.xaml.cs">
+        <DependentUpon>EmailListView.xaml</DependentUpon>
+        <SubType>Code</SubType>
+      </Compile>
+    </ItemGroup>
+
 </Project>

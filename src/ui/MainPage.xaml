@@ -1,31 +1,68 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             x:Class="ui.MainPage" Title="Gmailer">
+             xmlns:views="clr-namespace:ui.Views"
+             x:Class="ui.MainPage"
+             Title="Gmailer">
 
-    <Grid RowDefinitions="Auto, * , Auto" ColumnDefinitions="1*, 2*" Padding="10"> 
-        <CollectionView x:Name="GroupList" Grid.Row="1" Grid.Column="0" SelectionMode="Single" SelectionChanged="OnGroupSelected">
-            <CollectionView.ItemTemplate>
-                <DataTemplate>
-                    <HorizontalStackLayout Spacing="8" Padding="10,5">
-                        <Label Text="{Binding Domain}" FontAttributes="Bold" />
-                        <Label Text="{Binding Total}" TextColor="Gray" />
-                    </HorizontalStackLayout>
-                </DataTemplate>
-            </CollectionView.ItemTemplate>
-        </CollectionView>
-        <CollectionView x:Name="EmailList" Grid.Row="1" Grid.Column="1" SelectionMode="Multiple" ItemsSource="{Binding SelectedEmails}">
-            <CollectionView.ItemTemplate>
-                <DataTemplate>
-                    <HorizontalStackLayout Spacing="8" Padding="8,4" VerticalOptions="Center">
-                        <Label Text="{Binding Date}" FontAttributes="Bold" WidthRequest="130" />
-                        <Label Text="{Binding Address}" MaxLines="1" TextColor="Gray" />
-                        <Label Text="{Binding Subject}" LineBreakMode="TailTruncation" MaxLines="1" HorizontalOptions="FillAndExpand" />
-                    </HorizontalStackLayout>
-                </DataTemplate>
-            </CollectionView.ItemTemplate>
-        </CollectionView>
-        <Button Grid.Row="2" Grid.ColumnSpan="2" Text="Delete Selected" Clicked="OnDeleteClicked" HorizontalOptions="Fill" />
-    </Grid>
-    
+    <AbsoluteLayout>
+
+        <Grid x:Name="MainGrid"
+              RowDefinitions="Auto,*,Auto"
+              ColumnDefinitions="1*,2*"
+              Padding="10"
+              AbsoluteLayout.LayoutBounds="0,0,1,1"
+              AbsoluteLayout.LayoutFlags="All">
+
+            <Button x:Name="SyncBtn"
+                    Grid.Row="0"
+                    Grid.Column="1"
+                    Text="Sync with Gmail"
+                    Clicked="OnSyncClicked"
+                    HorizontalOptions="End"
+                    BackgroundColor="#e53935"
+                    TextColor="White"
+                    Padding="12,8"
+                    FontAttributes="Bold"
+                    CornerRadius="6" />
+
+            <views:GroupListView x:Name="GroupPanel" Grid.Row="1" Grid.Column="0" />
+            <views:EmailListView x:Name="EmailPanel" Grid.Row="1" Grid.Column="1" />
+
+            <Button x:Name="DeleteBtn"
+                    Grid.Row="2"
+                    Grid.ColumnSpan="2"
+                    Text="Delete Selected"
+                    Clicked="OnDeleteClicked"
+                    HorizontalOptions="Fill" />
+        </Grid>
+
+        <Grid x:Name="ProgressOverlay"
+              BackgroundColor="#80000000"
+              IsVisible="False"
+              VerticalOptions="FillAndExpand"
+              HorizontalOptions="FillAndExpand"
+              AbsoluteLayout.LayoutBounds="0,0,1,1"
+              AbsoluteLayout.LayoutFlags="All"
+              ZIndex="10">
+
+            <Frame Padding="20"
+                   BackgroundColor="White"
+                   BorderColor="#CCCCCC"
+                   CornerRadius="8"
+                   HasShadow="True"
+                   HorizontalOptions="Center"
+                   VerticalOptions="Center">
+
+                <VerticalStackLayout Spacing="10" HorizontalOptions="Center">
+                    <ActivityIndicator IsRunning="True" Color="Red" />
+                    <Label x:Name="ProgressLabel"
+                           Text="Syncing..."
+                           FontAttributes="Bold"
+                           HorizontalOptions="Center" />
+                </VerticalStackLayout>
+            </Frame>
+        </Grid>
+
+    </AbsoluteLayout>
 </ContentPage>

@@ -7,21 +7,24 @@ namespace ui;
 
 public partial class MainPage
 {
+    #region Variables
+
+    private readonly IEmailService _emailService;
+    private readonly UiOptions _options;
+
+    #endregion
+
     #region Constructors
 
     public MainPage(IEmailService emailService)
     {
         InitializeComponent();
-        _options = new UiOptions();
         _emailService = emailService;
+        _options = new UiOptions();
+
+        // Subscribe to the event from GroupListView
+        GroupPanel.GroupSelected += OnGroupSelected;
     }
-
-    #endregion
-
-    #region Variables
-
-    private readonly IEmailService _emailService;
-    private readonly UiOptions _options;
 
     #endregion
 
@@ -32,8 +35,30 @@ public partial class MainPage
         try
         {
             base.OnAppearing();
+
             await _emailService.InitializeAsync();
             await LoadGroupsAsync();
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Unexpected Exception", ex.Message, "OK");
+        }
+    }
+
+    private async void OnSyncClicked(object? sender, EventArgs e)
+    {
+        try
+        {
+            int totalBatches = 10;
+
+            await RunLongTaskAsync(async progress =>
+            {
+                for (int i = 1; i <= totalBatches; i++)
+                {
+                    await Task.Delay(500);
+                    progress.Report(i);
+                }
+            }, totalBatches, "Syncing batch");
         }
         catch (Exception ex)
         {
@@ -45,25 +70,26 @@ public partial class MainPage
     {
         try
         {
-            if (EmailList.SelectedItems?.Count > 0)
+            Email[] selectedEmails = EmailPanel.GetSelectedEmails();
+
+            if (selectedEmails.Length > 0)
             {
-                Email[] emails = EmailList.SelectedItems.Cast<Email>().ToArray();
-                await _emailService.DeleteEmailsAsync(emails, _options.Label);
-                if (GroupList.SelectedItem is not EmailGrouping currentGroup) return;
-                foreach (var email in emails)
+                await _emailService.DeleteEmailsAsync(selectedEmails, _options.Label);
+                if (GroupPanel.CurrentSelection is not EmailGrouping currentGroup) return;
+                foreach (var email in selectedEmails)
                 {
                     currentGroup.Emails.Remove(email);
                 }
             }
-            else if (GroupList.SelectedItem is EmailGrouping group)
+            else if (GroupPanel.CurrentSelection is EmailGrouping group)
             {
                 await _emailService.DeleteGroupingsAsync([group], _options.Label);
-                if (GroupList.ItemsSource is ObservableCollection<EmailGrouping> groups)
+                if (GroupPanel.ItemsSource is ObservableCollection<EmailGrouping> groups)
                 {
                     groups.Remove(group);
                 }
 
-                EmailList.ItemsSource = null;
+                EmailPanel.SetItemsSource([]);
             }
         }
         catch (Exception ex)
@@ -72,21 +98,54 @@ public partial class MainPage
         }
     }
 
-    private void OnGroupSelected(object? sender, SelectionChangedEventArgs e)
+    private void OnGroupSelected(object? sender, EmailGrouping group)
     {
-        EmailList.SelectedItems = [];
-        if (e.CurrentSelection.FirstOrDefault() is not EmailGrouping selected) return;
-        EmailList.ItemsSource = selected.Emails;
+        // When a group is clicked, update the right panel
+        EmailPanel.SetItemsSource(group.Emails);
     }
 
     #endregion
 
     #region Helper Methods
 
+    private async Task RunLongTaskAsync(Func<IProgress<int>, Task> operation, int totalSteps, string actionLabel = "Processing")
+    {
+        try
+        {
+            SetUiEnabled(false);
+            ProgressOverlay.IsVisible = true;
+            ProgressLabel.Text = $"{actionLabel} 0 of {totalSteps}...";
+
+            var progress = new Progress<int>(value =>
+            {
+                ProgressLabel.Text = $"{actionLabel} {value} of {totalSteps}...";
+            });
+
+            await operation(progress);
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Error", ex.Message, "OK");
+        }
+        finally
+        {
+            ProgressOverlay.IsVisible = false;
+            SetUiEnabled(true);
+        }
+    }
+
+    private void SetUiEnabled(bool enabled)
+    {
+        SyncBtn.IsEnabled = enabled;
+        DeleteBtn.IsEnabled = enabled;
+        GroupPanel.IsEnabled = enabled;
+        EmailPanel.IsEnabled = enabled;
+    }
+
     private async Task LoadGroupsAsync()
     {
         EmailGroupingCollection grouping = await _emailService.ListEmailsAsync(_options);
-        GroupList.ItemsSource = grouping.Groupings;
+        GroupPanel.SetItemsSource(grouping.Groupings);
     }
 
     #endregion

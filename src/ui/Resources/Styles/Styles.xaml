@@ -43,7 +43,6 @@
                 <VisualStateGroup x:Name="CommonStates">
                     <VisualState x:Name="Normal" />
                 
-                    <!-- Add this one -->
                     <VisualState x:Name="Pressed">
                         <VisualState.Setters>
                             <Setter Property="BackgroundColor"
