@@ -66,16 +66,20 @@ public partial class MainPage
     {
         try
         {
-            // TODO: Implement sync behavior
-            int totalBatches = 10;
-            await RunLongTaskAsync(async progress =>
+            _options.ShouldCacheEmails = true;
+            _options.ShouldGetCache = false;
+
+            await RunBatchTaskAsync(async progress =>
             {
-                for (int i = 1; i <= totalBatches; i++)
+                var grouping = await _emailService.ListEmailsAsync(_options, progress);
+                await MainThread.InvokeOnMainThreadAsync(() =>
                 {
-                    await Task.Delay(500);
-                    progress.Report(i);
-                }
-            }, totalBatches, "Syncing batch");
+                    GroupPanel.SetItemsSource(grouping.Groupings);
+                });
+            }, "Syncing batch");
+            
+            _options.ShouldCacheEmails = false;
+            _options.ShouldGetCache = true;
         }
         catch (Exception ex)
         {
@@ -124,15 +128,20 @@ public partial class MainPage
 
     #region Helper Methods
 
-    private async Task RunLongTaskAsync(Func<IProgress<int>, Task> operation, int totalSteps, string actionLabel = "Processing")
+    private async Task RunBatchTaskAsync(Func<IProgress<(int current, int total)>, Task> operation, string actionLabel = "Processing")
     {
         try
         {
             SetUiEnabled(false);
             ProgressOverlay.IsVisible = true;
-            ProgressLabel.Text = $"{actionLabel} 0 of {totalSteps}...";
+            ProgressLabel.Text = $"{actionLabel}...";
 
-            var progress = new Progress<int>(value => { ProgressLabel.Text = $"{actionLabel} {value} of {totalSteps}..."; });
+            var progress = new Progress<(int current, int total)>(p =>
+            {
+                var total = Math.Max(1, p.total);
+                var current = Math.Min(p.current, total);
+                ProgressLabel.Text = $"{actionLabel} {current} of {total}...";
+            });
 
             await operation(progress);
         }

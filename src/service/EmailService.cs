@@ -61,11 +61,11 @@ public class EmailService(IConnectionMultiplexer redis) : IEmailService
         });
     }
 
-    public async Task<EmailGroupingCollection> ListEmailsAsync(IMessagesOptions options)
+    public async Task<EmailGroupingCollection> ListEmailsAsync(IMessagesOptions options, IProgress<(int current, int total)>? progress = null)
     {
         EmailGroupingCollection grouping = new EmailGroupingCollection();
 
-        Email[]? emails = await RetrieveEmails(options);
+        Email[]? emails = await RetrieveEmails(options, progress);
         emails.DetermineDomains();
 
         if (options.ShouldCacheEmails)
@@ -93,12 +93,13 @@ public class EmailService(IConnectionMultiplexer redis) : IEmailService
             grouping.AddGrouping(new EmailGrouping(group));
         }
 
-        if (singletons.Count == 0) return grouping;
-        
-        var miscEmails = singletons.SelectMany(g => g).ToList();
-        var miscGroup = new EmailGrouping("misc", miscEmails);
-        grouping.AddGrouping(miscGroup);
-        
+        if (singletons.Count > 0)
+        {
+            var miscEmails = singletons.SelectMany(g => g).ToList();
+            var miscGroup = new EmailGrouping("misc", miscEmails);
+            grouping.AddGrouping(miscGroup);
+        }
+
         var resorted = options.IsDescending
             ? grouping.Groupings.OrderByDescending(g => g.Total).ToList()
             : grouping.Groupings.OrderBy(g => g.Total).ToList();
@@ -108,7 +109,7 @@ public class EmailService(IConnectionMultiplexer redis) : IEmailService
         {
             grouping.Groupings.Add(group);
         }
-        
+
         return grouping;
     }
 
@@ -244,26 +245,24 @@ public class EmailService(IConnectionMultiplexer redis) : IEmailService
         await LoadMessages(messages, response.NextPageToken, options);
     }
 
-    private async Task<Email[]?> RetrieveEmails(IMessagesOptions options)
+    private async Task<Email[]?> RetrieveEmails(IMessagesOptions options, IProgress<(int current, int total)>? progress = null)
     {
-        if (options.ShouldGetCache)
-        {
-            Console.WriteLine("Fetching emails from a local cache. This shouldn't take long.");
-            return GetCachedEmails(options.Label);
-        }
+        if (options.ShouldGetCache) return GetCachedEmails(options.Label);
 
-        Console.WriteLine("Fetching message ids");
-        List<MessageBatch> messageBatches = new List<MessageBatch>();
+        var messageBatches = new List<MessageBatch>();
         await LoadMessages(messageBatches, "first", options);
 
-        List<Email> emails = new List<Email>();
+        var emails = new List<Email>();
+        int total = messageBatches.Count;
+        int current = 0;
 
-        int batchCount = 1;
-        foreach (MessageBatch messageBatch in messageBatches)
+        progress?.Report((0, total));
+        foreach (var batch in messageBatches)
         {
-            Console.Write($"\rProcessing {batchCount} out of {messageBatches.Count}");
-            emails.AddRange(await FetchEmails(messageBatch));
-            batchCount++;
+            current++;
+            Console.Write($"\rProcessing {current} out of {messageBatches.Count}");
+            progress?.Report((current, total));
+            emails.AddRange(await FetchEmails(batch));
         }
 
         Console.WriteLine();
