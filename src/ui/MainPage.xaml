@@ -1,5 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8" ?>
-<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+﻿<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:views="clr-namespace:ui.Views"
              x:Class="ui.MainPage"
@@ -10,31 +9,72 @@
         <Grid x:Name="MainGrid"
               RowDefinitions="Auto,*,Auto"
               ColumnDefinitions="1*,2*"
-              Padding="10"
+              Padding="20"
+              ColumnSpacing="20"
+              RowSpacing="15"
               AbsoluteLayout.LayoutBounds="0,0,1,1"
               AbsoluteLayout.LayoutFlags="All">
 
-            <Button x:Name="SyncBtn"
+            <Picker x:Name="CacheKeyPicker"
                     Grid.Row="0"
-                    Grid.Column="1"
-                    Text="Sync with Gmail"
-                    Clicked="OnSyncClicked"
-                    HorizontalOptions="End"
-                    BackgroundColor="#e53935"
-                    TextColor="White"
-                    Padding="12,8"
+                    Grid.Column="0"
+                    Title="Select Cache Label"
+                    HorizontalOptions="Start"
+                    VerticalOptions="Start"
+                    WidthRequest="200"
+                    Margin="0,0,0,10"
+                    SelectedIndexChanged="OnCacheKeyChanged"
+                    BackgroundColor="{AppThemeBinding Light=#F0F0F0, Dark=#2D2D2D}"
+                    TextColor="{AppThemeBinding Light=Black, Dark=White}"
+                    FontSize="14"
                     FontAttributes="Bold"
-                    CornerRadius="6" />
+            />
+            
+            <Frame HasShadow="True"
+                   Padding="0"
+                   Margin="0,0,0,10"
+                   CornerRadius="8"
+                   Grid.Row="0" Grid.Column="1"
+                   HorizontalOptions="End"
+                   VerticalOptions="Start"
+                   WidthRequest="160"> <!-- optional fixed width -->
+                <Button x:Name="SyncBtn"
+                        Text="Sync with Gmail"
+                        Clicked="OnSyncClicked"
+                        BackgroundColor="#E53935"
+                        TextColor="White"
+                        FontAttributes="Bold"
+                        Padding="14,10"
+                        CornerRadius="8"/>
+            </Frame>
 
-            <views:GroupListView x:Name="GroupPanel" Grid.Row="1" Grid.Column="0" />
-            <views:EmailListView x:Name="EmailPanel" Grid.Row="1" Grid.Column="1" />
+            <views:GroupListView x:Name="GroupPanel"
+                                 Grid.Row="1"
+                                 Grid.Column="0"
+                                 BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1E1E1E}"
+                                 Margin="0,0,10,0"
+                                 Padding="8"
+                                 />
+
+            <Border StrokeShape="RoundRectangle 8"
+                    BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#252525}"
+                    Grid.Row="1" Grid.Column="1">
+                <views:EmailListView x:Name="EmailPanel"/>
+            </Border>
 
             <Button x:Name="DeleteBtn"
                     Grid.Row="2"
                     Grid.ColumnSpan="2"
                     Text="Delete Selected"
                     Clicked="OnDeleteClicked"
-                    HorizontalOptions="Fill" />
+                    HorizontalOptions="Fill"
+                    BackgroundColor="#B388FF"
+                    TextColor="White"
+                    CornerRadius="10"
+                    FontAttributes="Bold"
+                    Padding="14,10"
+                    Margin="0,10,0,0"
+                    />
         </Grid>
 
         <Grid x:Name="ProgressOverlay"
@@ -47,19 +87,20 @@
               ZIndex="10">
 
             <Frame Padding="20"
-                   BackgroundColor="White"
-                   BorderColor="#CCCCCC"
+                   BackgroundColor="{AppThemeBinding Light=White, Dark=#2C2C2C}"
+                   BorderColor="#888"
                    CornerRadius="8"
                    HasShadow="True"
                    HorizontalOptions="Center"
                    VerticalOptions="Center">
 
                 <VerticalStackLayout Spacing="10" HorizontalOptions="Center">
-                    <ActivityIndicator IsRunning="True" Color="Red" />
+                    <ActivityIndicator IsRunning="True" Color="#E53935" />
                     <Label x:Name="ProgressLabel"
                            Text="Syncing..."
                            FontAttributes="Bold"
-                           HorizontalOptions="Center" />
+                           HorizontalOptions="Center"
+                           TextColor="{AppThemeBinding Light=Black, Dark=White}" />
                 </VerticalStackLayout>
             </Frame>
         </Grid>

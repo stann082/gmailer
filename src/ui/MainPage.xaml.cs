@@ -22,7 +22,6 @@ public partial class MainPage
         _emailService = emailService;
         _options = new UiOptions();
 
-        // Subscribe to the event from GroupListView
         GroupPanel.GroupSelected += OnGroupSelected;
     }
 
@@ -37,6 +36,24 @@ public partial class MainPage
             base.OnAppearing();
 
             await _emailService.InitializeAsync();
+            await LoadCacheKeysAsync();
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Unexpected Exception", ex.Message, "OK");
+        }
+    }
+
+    private async void OnCacheKeyChanged(object? sender, EventArgs e)
+    {
+        try
+        {
+            if (CacheKeyPicker.SelectedItem is not string selectedKey)
+            {
+                return;
+            }
+
+            _options.Label = selectedKey;
             await LoadGroupsAsync();
         }
         catch (Exception ex)
@@ -49,8 +66,8 @@ public partial class MainPage
     {
         try
         {
+            // TODO: Implement sync behavior
             int totalBatches = 10;
-
             await RunLongTaskAsync(async progress =>
             {
                 for (int i = 1; i <= totalBatches; i++)
@@ -100,7 +117,6 @@ public partial class MainPage
 
     private void OnGroupSelected(object? sender, EmailGrouping group)
     {
-        // When a group is clicked, update the right panel
         EmailPanel.SetItemsSource(group.Emails);
     }
 
@@ -116,10 +132,7 @@ public partial class MainPage
             ProgressOverlay.IsVisible = true;
             ProgressLabel.Text = $"{actionLabel} 0 of {totalSteps}...";
 
-            var progress = new Progress<int>(value =>
-            {
-                ProgressLabel.Text = $"{actionLabel} {value} of {totalSteps}...";
-            });
+            var progress = new Progress<int>(value => { ProgressLabel.Text = $"{actionLabel} {value} of {totalSteps}..."; });
 
             await operation(progress);
         }
@@ -142,6 +155,24 @@ public partial class MainPage
         EmailPanel.IsEnabled = enabled;
     }
 
+    private async Task LoadCacheKeysAsync()
+    {
+        try
+        {
+            // var keys = await _emailService.ListCacheKeysAsync();
+            string[] keys = ["inbox", "all"];
+            CacheKeyPicker.ItemsSource = keys.ToList();
+            if (keys.Length != 0)
+            {
+                CacheKeyPicker.SelectedIndex = 0;
+            }
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Error loading cache keys", ex.Message, "OK");
+        }
+    }
+    
     private async Task LoadGroupsAsync()
     {
         EmailGroupingCollection grouping = await _emailService.ListEmailsAsync(_options);
