@@ -7,52 +7,35 @@ using service;
 
 namespace cli;
 
-public class App
+public class App(IEmailService emailService)
 {
-
-    #region Constructors
-
-    public App(IEmailService emailService)
-    {
-        _emailService = emailService;
-    }
-
-    #endregion
-
-    #region Variables
-
-    private readonly IEmailService _emailService;
-
-    #endregion
 
     #region Public Methods
 
-    public int RunApp(IEnumerable<string> args)
+    public async Task<int> RunApp(IEnumerable<string> args)
     {
-        return Parser.Default.ParseArguments<MessagesOptions,
-                ComposeOptions,
-                LabelsOptions>(args)
-            .MapResult(
-                (MessagesOptions opts) => ListEmails(opts),
-                (ComposeOptions opts) => ComposeEmail(opts),
-                (LabelsOptions opts) => Labels(opts),
-                errs => 1);
+        await emailService.InitializeAsync();
+        return await Parser.Default.ParseArguments<MessagesOptions, ComposeOptions, LabelsOptions>(args).MapResult(
+                async (MessagesOptions opts) => await ListEmails(opts),
+                async (ComposeOptions opts) => await ComposeEmail(opts),
+                async (LabelsOptions opts) => await Labels(opts),
+                _ => Task.FromResult(1));
     }
 
     #endregion
 
     #region Helper Methods
 
-    private int ComposeEmail(ComposeOptions opts)
+    private async Task<int> ComposeEmail(ComposeOptions opts)
     {
-        throw new NotImplementedException();
+        return await Task.FromResult(0);
     }
 
-    private int Labels(LabelsOptions opts)
+    private async Task<int> Labels(LabelsOptions opts)
     {
         try
         {
-            IEnumerable<Label> labels = _emailService.ListLabels().GetAwaiter().GetResult();
+            IEnumerable<Label> labels = await emailService.ListLabelsAsync();
             foreach (Label label in labels)
             {
                 Console.WriteLine(label.Name);
@@ -67,7 +50,7 @@ public class App
         return 0;
     }
 
-    private int ListEmails(IMessagesOptions opts)
+    private async Task<int> ListEmails(IMessagesOptions opts)
     {
         if (opts.Label == "all")
         {
@@ -80,7 +63,7 @@ public class App
             return 1;
         }
 
-        EmailGroupingCollection grouping = _emailService.ListEmails(opts).GetAwaiter().GetResult();
+        EmailGroupingCollection grouping = await emailService.ListEmailsAsync(opts);
         if (opts.ShouldCacheEmails)
         {
             Console.WriteLine($"Cached {grouping.GetEmailsTotal()} emails");
@@ -98,7 +81,7 @@ public class App
         }
 
         int count = 1;
-        foreach (var group in grouping.GetGroupings())
+        foreach (var group in grouping.Groupings)
         {
             string output = $"{count}: {group.Domain} ({group.Total})";
             Console.WriteLine(output);
