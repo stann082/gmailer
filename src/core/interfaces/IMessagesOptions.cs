@@ -3,6 +3,7 @@
 public interface IMessagesOptions
 {
     
+    // attributes
     bool IsDescending { get; }
     string Label { get; }
     int ResultsPePage { get; }
@@ -12,4 +13,7 @@ public interface IMessagesOptions
     bool ShouldGroup { get; }
     bool Unread { get; }
     
+    // behavior
+    string GetCacheKey();
+
 }

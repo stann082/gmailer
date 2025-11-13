@@ -15,50 +15,63 @@
               AbsoluteLayout.LayoutBounds="0,0,1,1"
               AbsoluteLayout.LayoutFlags="All">
 
-            <Picker x:Name="CacheKeyPicker"
-                    Grid.Row="0"
-                    Grid.Column="0"
-                    Title="Select Cache Label"
-                    HorizontalOptions="Start"
-                    VerticalOptions="Start"
-                    WidthRequest="200"
-                    Margin="0,0,0,10"
-                    SelectedIndexChanged="OnCacheKeyChanged"
-                    BackgroundColor="{AppThemeBinding Light=#F0F0F0, Dark=#2D2D2D}"
-                    TextColor="{AppThemeBinding Light=Black, Dark=White}"
-                    FontSize="14"
-                    FontAttributes="Bold"
-            />
-            
-            <Frame HasShadow="True"
-                   Padding="0"
-                   Margin="0,0,0,10"
-                   CornerRadius="8"
-                   Grid.Row="0" Grid.Column="1"
-                   HorizontalOptions="End"
-                   VerticalOptions="Start"
-                   WidthRequest="160"> <!-- optional fixed width -->
-                <Button x:Name="SyncBtn"
-                        Text="Sync with Gmail"
-                        Clicked="OnSyncClicked"
-                        BackgroundColor="#E53935"
-                        TextColor="White"
+            <Grid Grid.Row="0"
+                  Grid.ColumnSpan="2"
+                  ColumnDefinitions="Auto,Auto,*,Auto"
+                  Margin="0,0,0,10">
+
+                <Picker x:Name="LabelPicker"
+                        Grid.Column="0"
+                        Title="Select Label"
+                        WidthRequest="200"
+                        ItemDisplayBinding="{Binding Name}"
+                        SelectedIndexChanged="OnLabelChanged"
+                        BackgroundColor="{AppThemeBinding Light=#F0F0F0, Dark=#2D2D2D}"
+                        TextColor="{AppThemeBinding Light=Black, Dark=White}"
+                        FontSize="14"
                         FontAttributes="Bold"
-                        Padding="14,10"
-                        CornerRadius="8"/>
-            </Frame>
+                        Margin="0,0,20,0" />
+
+                <Label x:Name="LastSyncLabel"
+                       Grid.Column="1"
+                       Text="Last Sync: Never"
+                       VerticalOptions="Center"
+                       TextColor="Gray"
+                       FontSize="12"
+                       Margin="0,0,20,0" />
+
+                <Grid Grid.Column="2" />
+
+                <Frame Grid.Column="3"
+                       HasShadow="True"
+                       Padding="0"
+                       CornerRadius="8"
+                       VerticalOptions="Center"
+                       WidthRequest="160">
+
+                    <Button x:Name="SyncBtn"
+                            Text="Sync with Gmail"
+                            Clicked="OnSyncClicked"
+                            BackgroundColor="#E53935"
+                            TextColor="White"
+                            FontAttributes="Bold"
+                            Padding="14,10"
+                            CornerRadius="8"/>
+                </Frame>
+
+            </Grid>
 
             <views:GroupListView x:Name="GroupPanel"
                                  Grid.Row="1"
                                  Grid.Column="0"
                                  BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1E1E1E}"
                                  Margin="0,0,10,0"
-                                 Padding="8"
-                                 />
+                                 Padding="8" />
 
             <Border StrokeShape="RoundRectangle 8"
                     BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#252525}"
-                    Grid.Row="1" Grid.Column="1">
+                    Grid.Row="1"
+                    Grid.Column="1">
                 <views:EmailListView x:Name="EmailPanel"/>
             </Border>
 
@@ -73,8 +86,8 @@
                     CornerRadius="10"
                     FontAttributes="Bold"
                     Padding="14,10"
-                    Margin="0,10,0,0"
-                    />
+                    Margin="0,10,0,0" />
+
         </Grid>
 
         <Grid x:Name="ProgressOverlay"
@@ -102,6 +115,7 @@
                            HorizontalOptions="Center"
                            TextColor="{AppThemeBinding Light=Black, Dark=White}" />
                 </VerticalStackLayout>
+
             </Frame>
         </Grid>
 

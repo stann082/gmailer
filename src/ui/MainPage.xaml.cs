@@ -1,7 +1,8 @@
-﻿using System.Collections.ObjectModel;
-using core;
+﻿using core;
 using service;
 using Email = core.Email;
+using Label = Google.Apis.Gmail.v1.Data.Label;
+// ReSharper disable AsyncVoidMethod - try/catch is taken care of in ExecuteOrWrap
 
 namespace ui;
 
@@ -31,29 +32,26 @@ public partial class MainPage
 
     protected override async void OnAppearing()
     {
-        try
+        await ExecuteOrWrap(async () =>
         {
             base.OnAppearing();
-
             await _emailService.InitializeAsync();
-            await LoadCacheKeysAsync();
-        }
-        catch (Exception ex)
-        {
-            await DisplayAlert("Unexpected Exception", ex.Message, "OK");
-        }
+            await LoadLabelsAsync();
+            await UpdateLastSyncLabelAsync();
+        });
     }
 
-    private async void OnCacheKeyChanged(object? sender, EventArgs e)
+    private async void OnLabelChanged(object? sender, EventArgs e)
     {
         try
         {
-            if (CacheKeyPicker.SelectedItem is not string selectedKey)
+            if (LabelPicker.SelectedItem is not Label selectedKey)
             {
                 return;
             }
 
-            _options.Label = selectedKey;
+            _options.Label = selectedKey.Id;
+            await UpdateLastSyncLabelAsync();
             await LoadGroupsAsync();
         }
         catch (Exception ex)
@@ -66,20 +64,26 @@ public partial class MainPage
     {
         try
         {
+            if (LabelPicker.SelectedItem is not Label selectedLabel)
+            {
+                return;
+            }
+
+            _options.Label = selectedLabel.Id;
             _options.ShouldCacheEmails = true;
             _options.ShouldGetCache = false;
 
             await RunBatchTaskAsync(async progress =>
             {
                 var grouping = await _emailService.ListEmailsAsync(_options, progress);
-                await MainThread.InvokeOnMainThreadAsync(() =>
-                {
-                    GroupPanel.SetItemsSource(grouping.Groupings);
-                });
+                await MainThread.InvokeOnMainThreadAsync(() => { GroupPanel.SetItemsSource(grouping.Groupings); });
             }, "Syncing batch");
-            
+
             _options.ShouldCacheEmails = false;
             _options.ShouldGetCache = true;
+
+            await _emailService.SetLastSyncAsync(_options.Label);
+            await UpdateLastSyncLabelAsync();
         }
         catch (Exception ex)
         {
@@ -93,19 +97,20 @@ public partial class MainPage
         {
             Email[] selectedEmails = EmailPanel.GetSelectedEmails();
 
+            string key = _options.GetCacheKey();
             if (selectedEmails.Length > 0)
             {
-                await _emailService.DeleteEmailsAsync(selectedEmails, _options.Label);
-                if (GroupPanel.CurrentSelection is not EmailGrouping currentGroup) return;
+                await _emailService.DeleteEmailsAsync(selectedEmails, key);
+                if (GroupPanel.CurrentSelection is not { } currentGroup) return;
                 foreach (var email in selectedEmails)
                 {
                     currentGroup.Emails.Remove(email);
                 }
             }
-            else if (GroupPanel.CurrentSelection is EmailGrouping group)
+            else if (GroupPanel.CurrentSelection is { } group)
             {
-                await _emailService.DeleteGroupingsAsync([group], _options.Label);
-                if (GroupPanel.ItemsSource is ObservableCollection<EmailGrouping> groups)
+                await _emailService.DeleteGroupingsAsync([group], key);
+                if (GroupPanel.ItemsSource is { } groups)
                 {
                     groups.Remove(group);
                 }
@@ -127,6 +132,18 @@ public partial class MainPage
     #endregion
 
     #region Helper Methods
+
+    private async Task ExecuteOrWrap(Func<Task> func)
+    {
+        try
+        {
+            await func.Invoke();
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Unexpected Exception", ex.Message, "OK");
+        }
+    }
 
     private async Task RunBatchTaskAsync(Func<IProgress<(int current, int total)>, Task> operation, string actionLabel = "Processing")
     {
@@ -164,16 +181,15 @@ public partial class MainPage
         EmailPanel.IsEnabled = enabled;
     }
 
-    private async Task LoadCacheKeysAsync()
+    private async Task LoadLabelsAsync()
     {
         try
         {
-            // var keys = await _emailService.ListCacheKeysAsync();
-            string[] keys = ["inbox", "all"];
-            CacheKeyPicker.ItemsSource = keys.ToList();
-            if (keys.Length != 0)
+            Label[] labels = await _emailService.ListLabelsAsync();
+            LabelPicker.ItemsSource = labels.ToList();
+            if (labels.Length != 0)
             {
-                CacheKeyPicker.SelectedIndex = 0;
+                LabelPicker.SelectedIndex = 0;
             }
         }
         catch (Exception ex)
@@ -181,11 +197,17 @@ public partial class MainPage
             await DisplayAlert("Error loading cache keys", ex.Message, "OK");
         }
     }
-    
+
     private async Task LoadGroupsAsync()
     {
         EmailGroupingCollection grouping = await _emailService.ListEmailsAsync(_options);
         GroupPanel.SetItemsSource(grouping.Groupings);
+    }
+
+    private async Task UpdateLastSyncLabelAsync()
+    {
+        var lastSync = await _emailService.GetLastSyncAsync(_options.Label);
+        LastSyncLabel.Text = lastSync is null ? "Last Sync: Never" : $"Last Sync: {lastSync.Value.ToLocalTime():g}";
     }
 
     #endregion

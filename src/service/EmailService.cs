@@ -12,6 +12,7 @@ namespace service;
 
 public class EmailService(IConnectionMultiplexer redis) : IEmailService
 {
+
     #region Variables
 
     private readonly IDatabase _cache = redis.GetDatabase();
@@ -21,7 +22,7 @@ public class EmailService(IConnectionMultiplexer redis) : IEmailService
 
     #region Public Methods
 
-    public async Task DeleteEmailsAsync(IEnumerable<Email> emails, string label)
+    public async Task DeleteEmailsAsync(IEnumerable<Email> emails, string key)
     {
         if (_service == null)
         {
@@ -42,13 +43,13 @@ public class EmailService(IConnectionMultiplexer redis) : IEmailService
 
             var request = _service.Users.Messages.BatchDelete(messagesRequest, "me");
             await request.ExecuteAsync();
-            UpdateEmailsCache(label, emailIds);
+            UpdateEmailsCache(key, emailIds);
         }
     }
 
-    public async Task DeleteGroupingsAsync(IEnumerable<EmailGrouping> groupings, string label)
+    public async Task DeleteGroupingsAsync(IEnumerable<EmailGrouping> groupings, string key)
     {
-        await DeleteEmailsAsync(groupings.SelectMany(g => g.Emails), label);
+        await DeleteEmailsAsync(groupings.SelectMany(g => g.Emails), key);
     }
 
     public async Task InitializeAsync()
@@ -61,6 +62,23 @@ public class EmailService(IConnectionMultiplexer redis) : IEmailService
         });
     }
 
+    public Task<DateTime?> GetLastSyncAsync(string label)
+    {
+        string key = $"gmail:sync:last:{label}";
+        var raw = _cache.StringGet(key);
+        if (raw.IsNullOrEmpty)
+        {
+            return Task.FromResult<DateTime?>(null);
+        }
+
+        if (DateTime.TryParse(raw, out var dt))
+        {
+            return Task.FromResult<DateTime?>(dt);
+        }
+
+        return Task.FromResult<DateTime?>(null);
+    }
+
     public async Task<EmailGroupingCollection> ListEmailsAsync(IMessagesOptions options, IProgress<(int current, int total)>? progress = null)
     {
         EmailGroupingCollection grouping = new EmailGroupingCollection();
@@ -70,9 +88,10 @@ public class EmailService(IConnectionMultiplexer redis) : IEmailService
 
         if (options.ShouldCacheEmails)
         {
-            _cache.KeyDelete(options.Label);
+            string key = options.GetCacheKey();
+            _cache.KeyDelete(key);
             string emailsValue = JsonConvert.SerializeObject(emails);
-            _cache.StringSet(options.Label, emailsValue);
+            _cache.StringSet(key, emailsValue);
         }
 
         if (emails == null)
@@ -113,7 +132,7 @@ public class EmailService(IConnectionMultiplexer redis) : IEmailService
         return grouping;
     }
 
-    public async Task<IEnumerable<Label>> ListLabelsAsync()
+    public async Task<Label[]> ListLabelsAsync()
     {
         if (_service == null)
         {
@@ -123,14 +142,22 @@ public class EmailService(IConnectionMultiplexer redis) : IEmailService
 
         var request = _service.Users.Labels.List("me");
         var response = await request.ExecuteAsync();
-        if (response?.Labels == null)
-        {
-            throw new AggregateException("Could not return labels.");
-        }
+        if (response?.Labels == null) throw new AggregateException("Could not return labels.");
 
-        return response.Labels.ToArray();
+        IList<Label> labels = response.Labels;
+        labels = labels.Where(FilterEmailLabels).OrderBy(l => l.Type).ThenBy(l => l.Name).ToList();
+        labels.Insert(0, new Label { Id = "ALL", Name = "ALL", Type = "system" });
+        return labels.ToArray();
     }
 
+    public Task SetLastSyncAsync(string label)
+    {
+        string key = $"gmail:sync:last:{label}";
+        string value = DateTime.UtcNow.ToString("o");
+        _cache.StringSet(key, value);
+        return Task.CompletedTask;
+    }
+    
     #endregion
 
     #region Helper Methods
@@ -183,9 +210,15 @@ public class EmailService(IConnectionMultiplexer redis) : IEmailService
         return emails.ToArray();
     }
 
-    private Email[]? GetCachedEmails(string label)
+    private static bool FilterEmailLabels(Label l)
     {
-        string? storedEmailsJson = _cache.StringGet(label);
+        return !l.Id.StartsWith("CATEGORY_") && l.Id != "CHAT" && l.Id != "DRAFT" 
+               && l.Id != "IMPORTANT" && l.Id != "UNREAD" && l.Id != "STARRED" && l.Id != "YELLOW_STAR";
+    }
+
+    private Email[]? GetCachedEmails(string key)
+    {
+        string? storedEmailsJson = _cache.StringGet(key);
         return storedEmailsJson != null ? JsonConvert.DeserializeObject<List<Email>>(storedEmailsJson)?.ToArray() : [];
     }
 
@@ -203,9 +236,9 @@ public class EmailService(IConnectionMultiplexer redis) : IEmailService
         }
 
         var request = _service.Users.Messages.List("me");
-        if (options.Label != "all")
+        if (options.Label != "ALL")
         {
-            request.LabelIds = options.Label.ToUpper();
+            request.LabelIds = options.Label;
         }
 
         request.IncludeSpamTrash = false;
@@ -247,7 +280,7 @@ public class EmailService(IConnectionMultiplexer redis) : IEmailService
 
     private async Task<Email[]?> RetrieveEmails(IMessagesOptions options, IProgress<(int current, int total)>? progress = null)
     {
-        if (options.ShouldGetCache) return GetCachedEmails(options.Label);
+        if (options.ShouldGetCache) return GetCachedEmails(options.GetCacheKey());
 
         var messageBatches = new List<MessageBatch>();
         await LoadMessages(messageBatches, "first", options);
@@ -269,9 +302,9 @@ public class EmailService(IConnectionMultiplexer redis) : IEmailService
         return emails.ToArray();
     }
 
-    private void UpdateEmailsCache(string label, string?[] emailIds)
+    private void UpdateEmailsCache(string key, string?[] emailIds)
     {
-        Email[]? cachedEmails = GetCachedEmails(label);
+        Email[]? cachedEmails = GetCachedEmails(key);
         if (cachedEmails == null)
         {
             return;
@@ -279,7 +312,7 @@ public class EmailService(IConnectionMultiplexer redis) : IEmailService
 
         List<Email> newEmails = cachedEmails.Where(e => !emailIds.Contains(e.Id)).ToList();
         string emailsValue = JsonConvert.SerializeObject(newEmails);
-        _cache.StringSet(label, emailsValue);
+        _cache.StringSet(key, emailsValue);
     }
 
     #endregion
