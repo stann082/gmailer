@@ -2,7 +2,10 @@
 using service;
 using Email = core.Email;
 using Label = Google.Apis.Gmail.v1.Data.Label;
-// ReSharper disable AsyncVoidMethod - try/catch is taken care of in ExecuteOrWrap
+
+// The try/catch is taken care of in ExecuteOrWrap 
+// ReSharper disable AsyncVoidMethod
+// ReSharper disable AsyncVoidEventHandlerMethod
 
 namespace ui;
 
@@ -32,7 +35,7 @@ public partial class MainPage
 
     protected override async void OnAppearing()
     {
-        await ExecuteOrWrap(async () =>
+        await InvokeSafelyAsync(async () =>
         {
             base.OnAppearing();
             await _emailService.InitializeAsync();
@@ -43,7 +46,7 @@ public partial class MainPage
 
     private async void OnLabelChanged(object? sender, EventArgs e)
     {
-        try
+        await InvokeSafelyAsync(async () =>
         {
             if (LabelPicker.SelectedItem is not Label selectedKey)
             {
@@ -53,16 +56,12 @@ public partial class MainPage
             _options.Label = selectedKey.Id;
             await UpdateLastSyncLabelAsync();
             await LoadGroupsAsync();
-        }
-        catch (Exception ex)
-        {
-            await DisplayAlert("Unexpected Exception", ex.Message, "OK");
-        }
+        });
     }
 
     private async void OnSyncClicked(object? sender, EventArgs e)
     {
-        try
+        await InvokeSafelyAsync(async () =>
         {
             if (LabelPicker.SelectedItem is not Label selectedLabel)
             {
@@ -84,16 +83,12 @@ public partial class MainPage
 
             await _emailService.SetLastSyncAsync(_options.Label);
             await UpdateLastSyncLabelAsync();
-        }
-        catch (Exception ex)
-        {
-            await DisplayAlert("Unexpected Exception", ex.Message, "OK");
-        }
+        });
     }
 
     private async void OnDeleteClicked(object sender, EventArgs e)
     {
-        try
+        await InvokeSafelyAsync(async () =>
         {
             Email[] selectedEmails = EmailPanel.GetSelectedEmails();
 
@@ -117,11 +112,7 @@ public partial class MainPage
 
                 EmailPanel.SetItemsSource([]);
             }
-        }
-        catch (Exception ex)
-        {
-            await DisplayAlert("Unexpected Exception", ex.Message, "OK");
-        }
+        });
     }
 
     private void OnGroupSelected(object? sender, EmailGrouping group)
@@ -133,7 +124,7 @@ public partial class MainPage
 
     #region Helper Methods
 
-    private async Task ExecuteOrWrap(Func<Task> func)
+    private async Task InvokeSafelyAsync(Func<Task> func, string errorTitle = "Unexpected Exception")
     {
         try
         {
@@ -141,7 +132,7 @@ public partial class MainPage
         }
         catch (Exception ex)
         {
-            await DisplayAlert("Unexpected Exception", ex.Message, "OK");
+            await DisplayAlert(errorTitle, ex.Message, "OK");
         }
     }
 
@@ -183,7 +174,7 @@ public partial class MainPage
 
     private async Task LoadLabelsAsync()
     {
-        try
+        await InvokeSafelyAsync(async () =>
         {
             Label[] labels = await _emailService.ListLabelsAsync();
             LabelPicker.ItemsSource = labels.ToList();
@@ -191,11 +182,7 @@ public partial class MainPage
             {
                 LabelPicker.SelectedIndex = 0;
             }
-        }
-        catch (Exception ex)
-        {
-            await DisplayAlert("Error loading cache keys", ex.Message, "OK");
-        }
+        }, "Error loading labels");
     }
 
     private async Task LoadGroupsAsync()
