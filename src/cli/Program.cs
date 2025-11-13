@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using Serilog;
 using service;
 using StackExchange.Redis;
 
@@ -11,6 +12,11 @@ public static class Program
 
     public static async Task<int> Main(string[] args)
     {
+        Log.Logger = new LoggerConfiguration()
+            .MinimumLevel.Debug()
+            .WriteTo.Console()
+            .CreateLogger();
+
         var multiplexer = await ConnectionMultiplexer.ConnectAsync("localhost");
         var services = new ServiceCollection()
             .AddSingleton<App>()
