@@ -7,11 +7,12 @@ namespace service;
 public interface IEmailService
 {
     
+    Task CacheEmailsAsync(ICacheOptions cacheOptions, IProgress<(int current, int total)>? progress = null);
     Task DeleteEmailsAsync(IEnumerable<Email> emails);
     Task DeleteGroupingsAsync(IEnumerable<EmailGrouping> groupings);
     Task<DateTime?> GetLastSyncAsync();
     Task InitializeAsync();
-    Task<EmailGroupingCollection> ListEmailsAsync(IMessagesOptions options, IProgress<(int current, int total)>? progress = null);
+    EmailGroupingCollection ListEmails(IMessagesOptions messagesOptions, IProgress<(int current, int total)>? progress = null);
     Task<Label[]> ListLabelsAsync();
     Task SetLastSyncAsync();
 

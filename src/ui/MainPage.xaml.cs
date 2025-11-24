@@ -55,7 +55,7 @@ public partial class MainPage
 
             _options.Label = selectedKey.Id;
             await UpdateLastSyncLabelAsync();
-            await LoadGroupsAsync();
+            LoadEmailGroups();
         });
     }
 
@@ -73,7 +73,8 @@ public partial class MainPage
 
             await RunBatchTaskAsync(async progress =>
             {
-                var grouping = await _emailService.ListEmailsAsync(_options, progress);
+                await _emailService.CacheEmailsAsync(new UiCacheOptions(), progress);
+                var grouping = _emailService.ListEmails(_options);
                 await MainThread.InvokeOnMainThreadAsync(() => { GroupPanel.SetItemsSource(grouping.Groupings); });
             }, "Syncing batch");
 
@@ -162,12 +163,10 @@ public partial class MainPage
         }
     }
 
-    private void SetUiEnabled(bool enabled)
+    private void LoadEmailGroups()
     {
-        SyncBtn.IsEnabled = enabled;
-        DeleteBtn.IsEnabled = enabled;
-        GroupPanel.IsEnabled = enabled;
-        EmailPanel.IsEnabled = enabled;
+        EmailGroupingCollection grouping = _emailService.ListEmails(_options);
+        GroupPanel.SetItemsSource(grouping.Groupings);
     }
 
     private async Task LoadLabelsAsync()
@@ -183,10 +182,12 @@ public partial class MainPage
         }, "Error loading labels");
     }
 
-    private async Task LoadGroupsAsync()
+    private void SetUiEnabled(bool enabled)
     {
-        EmailGroupingCollection grouping = await _emailService.ListEmailsAsync(_options);
-        GroupPanel.SetItemsSource(grouping.Groupings);
+        SyncBtn.IsEnabled = enabled;
+        DeleteBtn.IsEnabled = enabled;
+        GroupPanel.IsEnabled = enabled;
+        EmailPanel.IsEnabled = enabled;
     }
 
     private async Task UpdateLastSyncLabelAsync()

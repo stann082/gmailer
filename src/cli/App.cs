@@ -9,22 +9,29 @@ namespace cli;
 
 public class App(IEmailService emailService)
 {
-
+    
     #region Public Methods
 
     public async Task<int> RunApp(IEnumerable<string> args)
     {
         await emailService.InitializeAsync();
-        return await Parser.Default.ParseArguments<MessagesOptions, ComposeOptions, LabelsOptions>(args).MapResult(
-                async (MessagesOptions opts) => await ListEmails(opts),
-                async (ComposeOptions opts) => await ComposeEmail(opts),
-                async (LabelsOptions opts) => await Labels(opts),
-                _ => Task.FromResult(1));
+        return await Parser.Default.ParseArguments<CacheOptions, MessagesOptions, ComposeOptions, LabelsOptions>(args).MapResult(
+            async (CacheOptions opts) => await Cache(opts),
+            async (MessagesOptions opts) => await ListEmails(opts),
+            async (ComposeOptions opts) => await ComposeEmail(opts),
+            async (LabelsOptions opts) => await Labels(opts),
+            _ => Task.FromResult(1));
     }
 
     #endregion
 
     #region Helper Methods
+
+    private async Task<int> Cache(CacheOptions opts)
+    {
+        await emailService.CacheEmailsAsync(opts);
+        return await Task.FromResult(0);
+    }
 
     private async Task<int> ComposeEmail(ComposeOptions opts)
     {
@@ -47,34 +54,12 @@ public class App(IEmailService emailService)
             return 1;
         }
 
-        return 0;
+        return await Task.FromResult(0);
     }
 
     private async Task<int> ListEmails(MessagesOptions opts)
     {
-        if (opts.Recent > 500)
-        {
-            Log.Error("The number of recent items to display {Recent} cannot be greater than 500", opts.Recent);
-            return 1;
-        }
-
-        EmailGroupingCollection grouping = await emailService.ListEmailsAsync(opts);
-        if (opts.ShouldCacheEmails)
-        {
-            Log.Information("Cached {EmailsTotal} emails", grouping.GetEmailsTotal());
-            return 0;
-        }
-        
-        if (!opts.ShouldGroup)
-        {
-            foreach (var email in grouping.GetEmails().OrderBy(e => e.ToDateTime()))
-            {
-                Log.Information("{EmailSubject} <{EmailAddress}> [{EmailDate}]", email.Subject, email.Address, email.ToDateTime());
-            }
-
-            return 0;
-        }
-
+        EmailGroupingCollection grouping = emailService.ListEmails(opts);
         int count = 1;
         foreach (var group in grouping.Groupings)
         {
@@ -84,9 +69,8 @@ public class App(IEmailService emailService)
         }
 
         Log.Information("{TotalEmails}: ", grouping.GetEmailsTotal());
-        return 0;
+        return await Task.FromResult(0);
     }
 
     #endregion
-
 }
