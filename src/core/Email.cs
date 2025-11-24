@@ -17,7 +17,7 @@ public class Email
     public Email(Message message, string id, bool doNotIncludeBody)
     {
         Id = id;
-        Labels = message.LabelIds.ToArray();
+        Labels = message.LabelIds;
         Initialize(message.Payload, doNotIncludeBody);
     }
 
@@ -31,22 +31,13 @@ public class Email
     public string Body { get; set; } = string.Empty;
     public string Date { get; private set; } = string.Empty;
     public string Domain { get; set; } = string.Empty;
-    public string[] Labels { get; set; } = [];
+    public IList<string> Labels { get; } = [];
     public string Name { get; set; } = string.Empty;
     public string Sender { get; private set; } = string.Empty;
     public string Subject { get; private set; } = string.Empty;
 
     #endregion
 
-    #region Public Methods
-
-    public DateTime ToDateTime()
-    {
-        return DateTime.TryParse(Date, out var result) ? result : DateTime.MinValue;
-    }
-
-    #endregion
-    
     #region Helper Methods
 
     private static string DecodeBase64Url(string input)

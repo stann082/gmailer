@@ -199,14 +199,23 @@ public class EmailService(IMongoDatabase database) : IEmailService
             {
                 var request = _service!.Users.Messages.Get("me", id);
                 request.Format = UsersResource.MessagesResource.GetRequest.FormatEnum.Full;
-                var response = await request.ExecuteAsync();
-                if (response == null)
-                {
-                    throw new AggregateException("Could not return emails.");
-                }
 
-                Email email = new Email(response, id, cacheOptions.DoNotIncludeBody);
-                emailsBatch.Add(email);
+                try
+                {
+                    var response = await request.ExecuteAsync();
+                    if (response == null)
+                    {
+                        Log.Error("Could not return emails");
+                        continue;
+                    }
+                    
+                    Email email = new Email(response, id, cacheOptions.DoNotIncludeBody);
+                    emailsBatch.Add(email);
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "Error fetching email with id {Id}", id);
+                }
             }
 
             allEmails.AddRange(emailsBatch);
