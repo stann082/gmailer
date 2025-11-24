@@ -12,7 +12,7 @@ public interface IEmailService
     Task DeleteGroupingsAsync(IEnumerable<EmailGrouping> groupings);
     Task<DateTime?> GetLastSyncAsync();
     Task InitializeAsync();
-    EmailGroupingCollection ListEmails(IMessagesOptions messagesOptions, IProgress<(int current, int total)>? progress = null);
+    EmailGroupingCollection ListEmails(IMessagesOptions messagesOptions);
     Task<Label[]> ListLabelsAsync();
     Task SetLastSyncAsync();
 

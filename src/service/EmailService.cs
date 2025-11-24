@@ -82,7 +82,7 @@ public class EmailService(IMongoDatabase database) : IEmailService
         return state?.LastSyncUtc;
     }
 
-    public EmailGroupingCollection ListEmails(IMessagesOptions messagesOptions, IProgress<(int current, int total)>? progress = null)
+    public EmailGroupingCollection ListEmails(IMessagesOptions messagesOptions)
     {
         EmailGroupingCollection grouping = new EmailGroupingCollection();
         if (!IsValidConnection()) return grouping;
@@ -294,4 +294,5 @@ public class EmailService(IMongoDatabase database) : IEmailService
     }
 
     #endregion
+    
 }
