@@ -64,7 +64,7 @@ public class App(IEmailService emailService)
             return 1;
         }
 
-        EmailGroupingCollection grouping = await emailService.ListEmailsAsync(opts);
+        EmailGroupingCollection grouping = await emailService.ListEmailsAsync(opts, opts.Label);
         if (opts.ShouldCacheEmails)
         {
             Log.Information("Cached {EmailsTotal} emails", grouping.GetEmailsTotal());

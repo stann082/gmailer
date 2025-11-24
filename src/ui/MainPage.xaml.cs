@@ -55,7 +55,7 @@ public partial class MainPage
 
             _options.Label = selectedKey.Id;
             await UpdateLastSyncLabelAsync();
-            await LoadGroupsAsync();
+            await LoadGroupsAsync(selectedKey.Name);
         });
     }
 
@@ -74,7 +74,7 @@ public partial class MainPage
 
             await RunBatchTaskAsync(async progress =>
             {
-                var grouping = await _emailService.ListEmailsAsync(_options, progress);
+                var grouping = await _emailService.ListEmailsAsync(_options, selectedLabel.Name, progress);
                 await MainThread.InvokeOnMainThreadAsync(() => { GroupPanel.SetItemsSource(grouping.Groupings); });
             }, "Syncing batch");
 
@@ -185,9 +185,9 @@ public partial class MainPage
         }, "Error loading labels");
     }
 
-    private async Task LoadGroupsAsync()
+    private async Task LoadGroupsAsync(string label)
     {
-        EmailGroupingCollection grouping = await _emailService.ListEmailsAsync(_options);
+        EmailGroupingCollection grouping = await _emailService.ListEmailsAsync(_options, label);
         GroupPanel.SetItemsSource(grouping.Groupings);
     }
 

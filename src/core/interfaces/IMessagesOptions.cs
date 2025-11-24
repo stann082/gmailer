@@ -11,9 +11,7 @@ public interface IMessagesOptions
     bool ShouldCacheEmails { get; }
     bool ShouldGetCache { get; }
     bool ShouldGroup { get; }
+    bool DoNotIncludeBody { get; }
     bool Unread { get; }
-    
-    // behavior
-    string GetCacheKey();
 
 }

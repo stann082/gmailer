@@ -14,6 +14,7 @@ public class UiOptions : AbstractOptions, IMessagesOptions
     public int Recent { get; set;  }
     public bool ShouldGetCache { get; set; } = true;
     public bool ShouldGroup { get; set; }
+    public bool DoNotIncludeBody { get; set; }
     public bool Unread { get; set; }
     public bool ShouldCacheEmails { get; set; }
 

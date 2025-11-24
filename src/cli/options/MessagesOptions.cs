@@ -10,6 +10,9 @@ public class MessagesOptions : AbstractOptions, IMessagesOptions
 
     #region Properties
     
+    [Option("no-body", HelpText = "Do not include email body during caching.")]
+    public bool DoNotIncludeBody { get; set; }
+
     public bool IsDescending => false;
 
     [Option('c', "cache", HelpText = "Cache emails.")]
