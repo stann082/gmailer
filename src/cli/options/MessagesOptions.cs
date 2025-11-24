@@ -1,11 +1,10 @@
 ﻿using CommandLine;
-using core;
 using core.interfaces;
 
 namespace cli.options;
 
 [Verb("messages", HelpText = "Managing messages.")]
-public class MessagesOptions : AbstractOptions, IMessagesOptions
+public class MessagesOptions : IMessagesOptions
 {
 
     #region Properties
@@ -44,13 +43,4 @@ public class MessagesOptions : AbstractOptions, IMessagesOptions
 
     #endregion
     
-    #region Overridden Methods
-
-    public override string GetCacheKey()
-    {
-        return $"{CacheKeyPrefix}{Label}";
-    }
-
-    #endregion
-
 }

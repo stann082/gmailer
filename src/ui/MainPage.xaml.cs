@@ -55,7 +55,7 @@ public partial class MainPage
 
             _options.Label = selectedKey.Id;
             await UpdateLastSyncLabelAsync();
-            await LoadGroupsAsync(selectedKey.Name);
+            await LoadGroupsAsync();
         });
     }
 
@@ -74,7 +74,7 @@ public partial class MainPage
 
             await RunBatchTaskAsync(async progress =>
             {
-                var grouping = await _emailService.ListEmailsAsync(_options, selectedLabel.Name, progress);
+                var grouping = await _emailService.ListEmailsAsync(_options, progress);
                 await MainThread.InvokeOnMainThreadAsync(() => { GroupPanel.SetItemsSource(grouping.Groupings); });
             }, "Syncing batch");
 
@@ -92,10 +92,9 @@ public partial class MainPage
         {
             Email[] selectedEmails = EmailPanel.GetSelectedEmails();
 
-            string key = _options.GetCacheKey();
             if (selectedEmails.Length > 0)
             {
-                await _emailService.DeleteEmailsAsync(selectedEmails, key);
+                await _emailService.DeleteEmailsAsync(selectedEmails, _options.Label);
                 if (GroupPanel.CurrentSelection is not { } currentGroup) return;
                 foreach (var email in selectedEmails)
                 {
@@ -104,7 +103,7 @@ public partial class MainPage
             }
             else if (GroupPanel.CurrentSelection is { } group)
             {
-                await _emailService.DeleteGroupingsAsync([group], key);
+                await _emailService.DeleteGroupingsAsync([group], _options.Label);
                 if (GroupPanel.ItemsSource is { } groups)
                 {
                     groups.Remove(group);
@@ -185,9 +184,9 @@ public partial class MainPage
         }, "Error loading labels");
     }
 
-    private async Task LoadGroupsAsync(string label)
+    private async Task LoadGroupsAsync()
     {
-        EmailGroupingCollection grouping = await _emailService.ListEmailsAsync(_options, label);
+        EmailGroupingCollection grouping = await _emailService.ListEmailsAsync(_options);
         GroupPanel.SetItemsSource(grouping.Groupings);
     }
 

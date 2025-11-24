@@ -16,7 +16,7 @@ public class EmailService(IMongoDatabase database) : IEmailService
     #region Variables
 
     private IMongoCollection<Email>? _emailsCollection;
-    private IMongoCollection<string>? _syncCollection;
+    private IMongoCollection<SyncState>? _syncCollection;
     private GmailService? _service;
 
     #endregion
@@ -28,7 +28,7 @@ public class EmailService(IMongoDatabase database) : IEmailService
         if (!IsValidConnection()) return;
 
         BatchDeleteMessagesRequest messagesRequest = new BatchDeleteMessagesRequest { Ids = new List<string>() };
-        string?[] emailIds = emails.Select(e => e.EmailId).ToArray();
+        string?[] emailIds = emails.Select(e => e.Id).ToArray();
         var idBatches = emailIds.Batch(1000);
         foreach (IEnumerable<string?> idBatch in idBatches)
         {
@@ -60,25 +60,13 @@ public class EmailService(IMongoDatabase database) : IEmailService
         });
         
         _emailsCollection = database.GetCollection<Email>("messages");
-        _syncCollection = database.GetCollection<string>("sync_timestamps");
+        _syncCollection = database.GetCollection<SyncState>("sync_timestamps");
     }
 
-    public Task<DateTime?> GetLastSyncAsync(string label)
+    public async Task<DateTime?> GetLastSyncAsync(string label)
     {
-        string key = $"gmail:sync:last:{label}";
-        // TODO: Fix caching
-        // var raw = _cache.StringGet(key);
-        // if (raw.IsNullOrEmpty)
-        // {
-        //     return Task.FromResult<DateTime?>(null);
-        // }
-        //
-        // if (DateTime.TryParse(raw, out var dt))
-        // {
-        //     return Task.FromResult<DateTime?>(dt);
-        // }
-
-        return Task.FromResult<DateTime?>(null);
+        var state = await _syncCollection.Find(s => s.Label == label).FirstOrDefaultAsync();
+        return state?.LastSyncUtc;
     }
 
     public async Task<EmailGroupingCollection> ListEmailsAsync(IMessagesOptions options, IProgress<(int current, int total)>? progress = null)
@@ -88,13 +76,13 @@ public class EmailService(IMongoDatabase database) : IEmailService
 
         Email[]? emails = await RetrieveEmails(options, progress);
         if (emails == null) return grouping;
-        
         emails.DetermineDomains();
 
         if (options.ShouldCacheEmails)
         {
-            await _emailsCollection.DeleteManyAsync(e => e.Label == options.Label);
-            await _emailsCollection!.InsertManyAsync(emails);
+            await _emailsCollection!.DeleteManyAsync(FilterDefinition<Email>.Empty);
+            await _emailsCollection.InsertManyAsync(emails);
+            await SetLastSyncAsync(options.Label);
         }
 
         if (emails == null)
@@ -197,7 +185,7 @@ public class EmailService(IMongoDatabase database) : IEmailService
                 throw new AggregateException("Could not return emails.");
             }
 
-            Email email = new Email(response.Payload, options.Label, id, options.DoNotIncludeBody);
+            Email email = new Email(response.Payload, id, options.Label, options.DoNotIncludeBody);
             emails.Add(email);
         }
 
@@ -236,53 +224,65 @@ public class EmailService(IMongoDatabase database) : IEmailService
     private async Task LoadMessages(ICollection<MessageBatch> messages, string pageToken, IMessagesOptions options)
     {
         if (!IsValidConnection()) return;
-
-        if (string.IsNullOrEmpty(pageToken))
+        
+        while (true)
         {
-            return;
-        }
+            if (string.IsNullOrEmpty(pageToken))
+            {
+                return;
+            }
 
-        var request = _service!.Users.Messages.List("me");
-        if (options.Label != "ALL")
-        {
-            request.LabelIds = options.Label;
-        }
+            var request = _service!.Users.Messages.List("me");
+            if (options.Label != "ALL")
+            {
+                request.LabelIds = options.Label;
+            }
 
-        request.IncludeSpamTrash = false;
+            request.IncludeSpamTrash = false;
 
-        if (options.Recent > 0)
-        {
-            request.MaxResults = options.Recent;
-        }
-        else if (options.ResultsPePage > 0)
-        {
-            request.MaxResults = options.ResultsPePage;
-        }
-        else
-        {
-            request.MaxResults = 100;
-        }
+            if (options.Recent > 0)
+            {
+                request.MaxResults = options.Recent;
+            }
+            else if (options.ResultsPePage > 0)
+            {
+                request.MaxResults = options.ResultsPePage;
+            }
+            else
+            {
+                request.MaxResults = 100;
+            }
 
-        request.PageToken = pageToken != "first" ? pageToken : null;
+            request.PageToken = pageToken != "first" ? pageToken : null;
 
-        if (options.Unread)
-        {
-            request.Q = "is:unread";
+            if (options.Unread)
+            {
+                request.Q = "is:unread";
+            }
+
+            ListMessagesResponse? response;
+            try
+            {
+                response = await request.ExecuteAsync();
+                if (response?.Messages == null)
+                {
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Error fetching messages from the Gmail server");
+                return;
+            }
+
+            messages.Add(new MessageBatch(response.Messages));
+            if (options.Recent > 0)
+            {
+                return;
+            }
+
+            pageToken = response.NextPageToken;
         }
-
-        var response = await request.ExecuteAsync();
-        if (response?.Messages == null)
-        {
-            throw new AggregateException("Could not return messages.");
-        }
-
-        messages.Add(new MessageBatch(response.Messages));
-        if (options.Recent > 0)
-        {
-            return;
-        }
-
-        await LoadMessages(messages, response.NextPageToken, options);
     }
 
     private async Task<Email[]?> RetrieveEmails(IMessagesOptions options, IProgress<(int current, int total)>? progress = null)
@@ -311,7 +311,7 @@ public class EmailService(IMongoDatabase database) : IEmailService
     private async Task UpdateEmailsCache(string?[] emailIds)
     {
         if (emailIds.Length == 0) return;
-        var filter = Builders<Email>.Filter.And(Builders<Email>.Filter.In(e => e.EmailId, emailIds));
+        var filter = Builders<Email>.Filter.And(Builders<Email>.Filter.In(e => e.Id, emailIds));
         await _emailsCollection!.DeleteManyAsync(filter);
     }
 

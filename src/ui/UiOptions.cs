@@ -1,9 +1,8 @@
-﻿using core;
-using core.interfaces;
+﻿using core.interfaces;
 
 namespace ui;
 
-public class UiOptions : AbstractOptions, IMessagesOptions
+public class UiOptions : IMessagesOptions
 {
 
     #region Properties
@@ -17,15 +16,6 @@ public class UiOptions : AbstractOptions, IMessagesOptions
     public bool DoNotIncludeBody { get; set; }
     public bool Unread { get; set; }
     public bool ShouldCacheEmails { get; set; }
-
-    #endregion
-
-    #region Overridden Methods
-
-    public override string GetCacheKey()
-    {
-        return $"{CacheKeyPrefix}{Label}";
-    }
 
     #endregion
 

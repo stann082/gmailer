@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using Google.Apis.Gmail.v1.Data;
+using MongoDB.Bson.Serialization.Attributes;
 
 namespace core;
 
@@ -13,9 +14,9 @@ public class Email
         // for json deserialization
     }
 
-    public Email(MessagePart payload, string emailId, string label, bool doNotIncludeBody)
+    public Email(MessagePart payload, string id, string label, bool doNotIncludeBody)
     {
-        EmailId = emailId;
+        Id = id;
         Label = label;
         Initialize(payload, doNotIncludeBody);
     }
@@ -24,15 +25,16 @@ public class Email
 
     #region Properties
 
-    public string? Address { get; private set; } = string.Empty;
-    public string? Body { get; set; } = string.Empty;
-    public string? Date { get; private set; } = string.Empty;
-    public string? Domain { get; set; } = string.Empty;
-    public string? EmailId { get; } = string.Empty;
+    [BsonId]
+    public string Id { get; } = string.Empty;
+    public string Address { get; private set; } = string.Empty;
+    public string Body { get; set; } = string.Empty;
+    public string Date { get; private set; } = string.Empty;
+    public string Domain { get; set; } = string.Empty;
     public string Label { get; set; } = string.Empty;
-    public string? Name { get; set; } = string.Empty;
-    public string? Sender { get; private set; } = string.Empty;
-    public string? Subject { get; private set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string Sender { get; private set; } = string.Empty;
+    public string Subject { get; private set; } = string.Empty;
 
     #endregion
 
