@@ -6,6 +6,7 @@ using Google.Apis.Gmail.v1.Data;
 using Google.Apis.Services;
 using Google.Apis.Util.Store;
 using Newtonsoft.Json;
+using Serilog;
 using StackExchange.Redis;
 
 namespace service;
@@ -26,7 +27,7 @@ public class EmailService(IConnectionMultiplexer redis) : IEmailService
     {
         if (_service == null)
         {
-            Console.WriteLine("Gmail service is not initialized.");
+            Log.Error("Gmail service is not initialized");
             return;
         }
 
@@ -136,7 +137,7 @@ public class EmailService(IConnectionMultiplexer redis) : IEmailService
     {
         if (_service == null)
         {
-            Console.WriteLine("Gmail service is not initialized.");
+            Log.Error("Gmail service is not initialized");
             return [];
         }
 
@@ -188,7 +189,7 @@ public class EmailService(IConnectionMultiplexer redis) : IEmailService
     {
         if (_service == null)
         {
-            Console.WriteLine("Gmail service is not initialized.");
+            Log.Error("Gmail service is not initialized");
             return [];
         }
 
@@ -226,7 +227,7 @@ public class EmailService(IConnectionMultiplexer redis) : IEmailService
     {
         if (_service == null)
         {
-            Console.WriteLine("Gmail service is not initialized.");
+            Log.Error("Gmail service is not initialized");
             return;
         }
 
@@ -293,12 +294,11 @@ public class EmailService(IConnectionMultiplexer redis) : IEmailService
         foreach (var batch in messageBatches)
         {
             current++;
-            Console.Write($"\rProcessing {current} out of {messageBatches.Count}");
+            Log.Information("\rProcessing {Current} out of {MessageBatchCount}", current, messageBatches.Count);
             progress?.Report((current, total));
             emails.AddRange(await FetchEmails(batch));
         }
 
-        Console.WriteLine();
         return emails.ToArray();
     }
 

@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using Serilog;
 using service;
 using StackExchange.Redis;
 
@@ -8,6 +9,14 @@ public static class MauiProgram
 {
     public static MauiApp CreateMauiApp()
     {
+        string baseLogPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        string logFilePath = Path.Combine(baseLogPath, "logs", "gmailer", "usage.log");
+
+        Log.Logger = new LoggerConfiguration()
+            .MinimumLevel.Debug()
+            .WriteTo.File(logFilePath, shared: true, rollingInterval: RollingInterval.Day)
+            .CreateLogger();
+
         var builder = MauiApp.CreateBuilder();
         builder
             .UseMauiApp<App>()

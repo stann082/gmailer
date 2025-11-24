@@ -14,9 +14,9 @@ public class MessagesOptions : AbstractOptions, IMessagesOptions
 
     [Option('c', "cache", HelpText = "Cache emails.")]
     public bool ShouldCacheEmails { get; set; }
-    
+
     [Option("label", Default = "inbox", HelpText = "Filter by label.")]
-    public string Label { get; set; } = string.Empty;
+    public string Label { get => _label.ToUpper(); set => _label = value; }
 
     [Option('p', "page", SetName = "paging", HelpText = "How many results per page to show.")]
     public int ResultsPePage { get; set; }
@@ -32,6 +32,12 @@ public class MessagesOptions : AbstractOptions, IMessagesOptions
 
     [Option('u', "unread", HelpText = "Show unread emails only.")]
     public bool Unread { get; set; }
+
+    #endregion
+
+    #region Variables
+
+    private string _label = string.Empty;
 
     #endregion
     

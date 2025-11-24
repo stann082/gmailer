@@ -3,6 +3,7 @@ using CommandLine;
 using core;
 using core.interfaces;
 using Google.Apis.Gmail.v1.Data;
+using Serilog;
 using service;
 
 namespace cli;
@@ -38,12 +39,12 @@ public class App(IEmailService emailService)
             IEnumerable<Label> labels = await emailService.ListLabelsAsync();
             foreach (Label label in labels)
             {
-                Console.WriteLine(label.Name);
+                Log.Information("{LabelName}", label.Name);
             }
         }
-        catch (Exception e)
+        catch (Exception ex)
         {
-            Console.WriteLine(e);
+            Log.Error(ex, "Unexpected error occurred while listing labels:");
             return 1;
         }
 
@@ -54,19 +55,19 @@ public class App(IEmailService emailService)
     {
         if (opts.Label == "all")
         {
-            Console.WriteLine("Trying to fetch all messages may result in a rate limit exception. Use at your own risk.");
+            Log.Warning("Trying to fetch all messages may result in a rate limit exception. Use at your own risk");
         }
 
         if (opts.Recent > 500)
         {
-            Console.WriteLine($"The number of recent items to display {opts.Recent} cannot be greater than 500");
+            Log.Error("The number of recent items to display {Recent} cannot be greater than 500", opts.Recent);
             return 1;
         }
 
         EmailGroupingCollection grouping = await emailService.ListEmailsAsync(opts);
         if (opts.ShouldCacheEmails)
         {
-            Console.WriteLine($"Cached {grouping.GetEmailsTotal()} emails");
+            Log.Information("Cached {EmailsTotal} emails", grouping.GetEmailsTotal());
             return 0;
         }
         
@@ -74,7 +75,7 @@ public class App(IEmailService emailService)
         {
             foreach (var email in grouping.GetEmails().OrderBy(e => e.ToDateTime()))
             {
-                Console.WriteLine($"{email.Subject} <{email.Address}> [{email.ToDateTime()}]");
+                Log.Information("{EmailSubject} <{EmailAddress}> [{EmailDate}]", email.Subject, email.Address, email.ToDateTime());
             }
 
             return 0;
@@ -84,11 +85,11 @@ public class App(IEmailService emailService)
         foreach (var group in grouping.Groupings)
         {
             string output = $"{count}: {group.Domain} ({group.Total})";
-            Console.WriteLine(output);
+            Log.Information("{Output}", output);
             count++;
         }
 
-        Console.WriteLine($"Total emails: {grouping.GetEmailsTotal()}");
+        Log.Information("{TotalEmails}: ", grouping.GetEmailsTotal());
         return 0;
     }
 
