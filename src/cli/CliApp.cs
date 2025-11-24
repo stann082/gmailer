@@ -15,10 +15,9 @@ public class CliApp(IEmailService emailService)
     public async Task<int> RunApp(IEnumerable<string> args)
     {
         await emailService.InitializeAsync();
-        return await Parser.Default.ParseArguments<CacheOptions, MessagesOptions, ComposeOptions, LabelsOptions>(args).MapResult(
+        return await Parser.Default.ParseArguments<CacheOptions, MessagesOptions, LabelsOptions>(args).MapResult(
             async (CacheOptions opts) => await Cache(opts),
             async (MessagesOptions opts) => await ListEmails(opts),
-            async (ComposeOptions opts) => await ComposeEmail(opts),
             async (LabelsOptions opts) => await Labels(opts),
             _ => Task.FromResult(1));
     }
@@ -33,11 +32,6 @@ public class CliApp(IEmailService emailService)
         return await Task.FromResult(0);
     }
 
-    private async Task<int> ComposeEmail(ComposeOptions opts)
-    {
-        return await Task.FromResult(0);
-    }
-
     private async Task<int> Labels(LabelsOptions opts)
     {
         try
@@ -45,7 +39,7 @@ public class CliApp(IEmailService emailService)
             IEnumerable<Label> labels = await emailService.ListLabelsAsync();
             foreach (Label label in labels)
             {
-                Log.Information("{LabelName}", label.Name);
+                Console.WriteLine($"Id: {label.Id}; Name: {label.Name}");
             }
         }
         catch (Exception ex)
@@ -64,11 +58,11 @@ public class CliApp(IEmailService emailService)
         foreach (var group in grouping.Groupings)
         {
             string output = $"{count}: {group.Domain} ({group.Total})";
-            Log.Information("{Output}", output);
+            Console.WriteLine($"{output}");
             count++;
         }
 
-        Log.Information("{TotalEmails}: ", grouping.GetEmailsTotal());
+        Console.WriteLine($"Total emails: {grouping.GetEmailsTotal()}");
         return await Task.FromResult(0);
     }
 
