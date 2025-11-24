@@ -1,7 +1,6 @@
 ﻿using cli.options;
 using CommandLine;
 using core;
-using core.interfaces;
 using Google.Apis.Gmail.v1.Data;
 using Serilog;
 using service;
@@ -51,13 +50,8 @@ public class App(IEmailService emailService)
         return 0;
     }
 
-    private async Task<int> ListEmails(IMessagesOptions opts)
+    private async Task<int> ListEmails(MessagesOptions opts)
     {
-        if (opts.Label == "all")
-        {
-            Log.Warning("Trying to fetch all messages may result in a rate limit exception. Use at your own risk");
-        }
-
         if (opts.Recent > 500)
         {
             Log.Error("The number of recent items to display {Recent} cannot be greater than 500", opts.Recent);

@@ -1,15 +1,11 @@
-﻿using MongoDB.Bson.Serialization.Attributes;
-
-namespace core;
+﻿namespace core;
 
 public class SyncState
 {
     #region Properties
 
-    [BsonId]
-    public string? Id { get; } = string.Empty;
+    public string Id { get; set; } = Constants.SyncTimestampId;
     public DateTime LastSyncUtc { get; set; }
-    public string Label { get; set; } = string.Empty;
 
     #endregion
 }

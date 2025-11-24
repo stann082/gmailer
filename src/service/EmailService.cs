@@ -23,7 +23,7 @@ public class EmailService(IMongoDatabase database) : IEmailService
 
     #region Public Methods
 
-    public async Task DeleteEmailsAsync(IEnumerable<Email> emails, string key)
+    public async Task DeleteEmailsAsync(IEnumerable<Email> emails)
     {
         if (!IsValidConnection()) return;
 
@@ -45,9 +45,9 @@ public class EmailService(IMongoDatabase database) : IEmailService
         await UpdateEmailsCache(emailIds);
     }
 
-    public async Task DeleteGroupingsAsync(IEnumerable<EmailGrouping> groupings, string key)
+    public async Task DeleteGroupingsAsync(IEnumerable<EmailGrouping> groupings)
     {
-        await DeleteEmailsAsync(groupings.SelectMany(g => g.Emails), key);
+        await DeleteEmailsAsync(groupings.SelectMany(g => g.Emails));
     }
 
     public async Task InitializeAsync()
@@ -63,9 +63,9 @@ public class EmailService(IMongoDatabase database) : IEmailService
         _syncCollection = database.GetCollection<SyncState>("sync_timestamps");
     }
 
-    public async Task<DateTime?> GetLastSyncAsync(string label)
+    public async Task<DateTime?> GetLastSyncAsync()
     {
-        var state = await _syncCollection.Find(s => s.Label == label).FirstOrDefaultAsync();
+        var state = await _syncCollection.Find(s => s.Id == Constants.SyncTimestampId).FirstOrDefaultAsync();
         return state?.LastSyncUtc;
     }
 
@@ -81,13 +81,8 @@ public class EmailService(IMongoDatabase database) : IEmailService
         if (options.ShouldCacheEmails)
         {
             await _emailsCollection!.DeleteManyAsync(FilterDefinition<Email>.Empty);
-            await _emailsCollection.InsertManyAsync(emails);
-            await SetLastSyncAsync(options.Label);
-        }
-
-        if (emails == null)
-        {
-            throw new AggregateException("Could not retrieve emails");
+            await InsertEmailsAsync(emails);
+            await SetLastSyncAsync();
         }
 
         var groupedEmails = emails.GroupBy(e => e.Domain).ToList();
@@ -137,10 +132,14 @@ public class EmailService(IMongoDatabase database) : IEmailService
         return labels.ToArray();
     }
 
-    public async Task SetLastSyncAsync(string label)
+    public async Task SetLastSyncAsync()
     {
         var update = Builders<SyncState>.Update.Set(s => s.LastSyncUtc, DateTime.UtcNow);
-        await _syncCollection.UpdateOneAsync(s => s.Label == label, update, new UpdateOptions { IsUpsert = true });
+        await _syncCollection.UpdateOneAsync(
+            filter: s => s.Id == Constants.SyncTimestampId,
+            update: update,
+            options: new UpdateOptions { IsUpsert = true }
+        );
     }
 
     #endregion
@@ -185,25 +184,38 @@ public class EmailService(IMongoDatabase database) : IEmailService
                 throw new AggregateException("Could not return emails.");
             }
 
-            Email email = new Email(response.Payload, id, options.Label, options.DoNotIncludeBody);
+            Email email = new Email(response, id, options.DoNotIncludeBody);
             emails.Add(email);
         }
 
         return emails.ToArray();
     }
 
-    private static bool FilterEmailLabels(Label l)
+    private static bool FilterEmailLabels(Label label)
     {
-        return !l.Id.StartsWith("CATEGORY_") && l.Id != "CHAT" && l.Id != "DRAFT"
-               && l.Id != "IMPORTANT" && l.Id != "UNREAD" && l.Id != "STARRED" && l.Id != "YELLOW_STAR";
+        return !label.Id.StartsWith("CATEGORY_") && label.Id != "CHAT" && label.Id != "DRAFT"
+               && label.Id != "IMPORTANT" && label.Id != "UNREAD" && label.Id != "STARRED" && label.Id != "YELLOW_STAR";
     }
 
     private Email[]? GetCachedEmails(string label)
     {
-        var emails = _emailsCollection.Find(x => x.Label == label).ToList();
+        var emails = _emailsCollection.Find(x => x.Labels.Contains(label)).ToList();
         return emails.Count != 0 ? emails.ToArray() : null;
     }
 
+    private async Task InsertEmailsAsync(Email[] emails)
+    {
+        foreach (var email in emails.Where(e => !string.IsNullOrWhiteSpace(e.Id)))
+        {
+            var filter = Builders<Email>.Filter.Eq(e => e.Id, email.Id);
+            await _emailsCollection!.ReplaceOneAsync(
+                filter,
+                email,
+                new ReplaceOptions { IsUpsert = true }
+            );
+        }
+    }
+    
     private bool IsValidConnection()
     {
         if (_service == null)
@@ -233,11 +245,6 @@ public class EmailService(IMongoDatabase database) : IEmailService
             }
 
             var request = _service!.Users.Messages.List("me");
-            if (options.Label != "ALL")
-            {
-                request.LabelIds = options.Label;
-            }
-
             request.IncludeSpamTrash = false;
 
             if (options.Recent > 0)

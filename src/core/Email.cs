@@ -14,11 +14,11 @@ public class Email
         // for json deserialization
     }
 
-    public Email(MessagePart payload, string id, string label, bool doNotIncludeBody)
+    public Email(Message message, string id, bool doNotIncludeBody)
     {
         Id = id;
-        Label = label;
-        Initialize(payload, doNotIncludeBody);
+        Labels = message.LabelIds.ToArray();
+        Initialize(message.Payload, doNotIncludeBody);
     }
 
     #endregion
@@ -31,7 +31,7 @@ public class Email
     public string Body { get; set; } = string.Empty;
     public string Date { get; private set; } = string.Empty;
     public string Domain { get; set; } = string.Empty;
-    public string Label { get; set; } = string.Empty;
+    public string[] Labels { get; set; } = [];
     public string Name { get; set; } = string.Empty;
     public string Sender { get; private set; } = string.Empty;
     public string Subject { get; private set; } = string.Empty;
@@ -62,11 +62,11 @@ public class Email
         return Encoding.UTF8.GetString(bytes);
     }
     
-    private static string? GetBodyFromParts(IList<MessagePart>? parts)
+    private static string GetBodyFromParts(IList<MessagePart>? parts)
     {
         if (parts == null)
         {
-            return null;
+            return string.Empty;
         }
 
         foreach (var part in parts)
@@ -94,7 +94,7 @@ public class Email
             return result;
         }
 
-        return null;
+        return string.Empty;
     }
     
     private void Initialize(MessagePart payload, bool doNotIncludeBody)

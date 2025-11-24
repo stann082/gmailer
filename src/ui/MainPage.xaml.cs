@@ -63,12 +63,11 @@ public partial class MainPage
     {
         await InvokeSafelyAsync(async () =>
         {
-            if (LabelPicker.SelectedItem is not Label selectedLabel)
+            if (LabelPicker.SelectedItem is not Label)
             {
                 return;
             }
 
-            _options.Label = selectedLabel.Id;
             _options.ShouldCacheEmails = true;
             _options.ShouldGetCache = false;
 
@@ -81,7 +80,7 @@ public partial class MainPage
             _options.ShouldCacheEmails = false;
             _options.ShouldGetCache = true;
 
-            await _emailService.SetLastSyncAsync(_options.Label);
+            await _emailService.SetLastSyncAsync();
             await UpdateLastSyncLabelAsync();
         });
     }
@@ -94,7 +93,7 @@ public partial class MainPage
 
             if (selectedEmails.Length > 0)
             {
-                await _emailService.DeleteEmailsAsync(selectedEmails, _options.Label);
+                await _emailService.DeleteEmailsAsync(selectedEmails);
                 if (GroupPanel.CurrentSelection is not { } currentGroup) return;
                 foreach (var email in selectedEmails)
                 {
@@ -103,7 +102,7 @@ public partial class MainPage
             }
             else if (GroupPanel.CurrentSelection is { } group)
             {
-                await _emailService.DeleteGroupingsAsync([group], _options.Label);
+                await _emailService.DeleteGroupingsAsync([group]);
                 if (GroupPanel.ItemsSource is { } groups)
                 {
                     groups.Remove(group);
@@ -192,7 +191,7 @@ public partial class MainPage
 
     private async Task UpdateLastSyncLabelAsync()
     {
-        var lastSync = await _emailService.GetLastSyncAsync(_options.Label);
+        var lastSync = await _emailService.GetLastSyncAsync();
         LastSyncLabel.Text = lastSync is null ? "Last Sync: Never" : $"Last Sync: {lastSync.Value.ToLocalTime():g}";
     }
 
