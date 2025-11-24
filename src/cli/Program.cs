@@ -19,11 +19,11 @@ public static class Program
             .CreateLogger();
 
         var services = new ServiceCollection()
-            .AddSingleton<App>()
+            .AddSingleton<CliApp>()
             .AddSingleton<IMongoDatabase>(_ => new MongoClient("mongodb://localhost:27017").GetDatabase(Constants.DatabaseName))
             .AddSingleton<IEmailService, EmailService>()
             .BuildServiceProvider();
-        return await services.GetService<App>()!.RunApp(args);
+        return await services.GetService<CliApp>()!.RunApp(args);
     }
 
     #endregion

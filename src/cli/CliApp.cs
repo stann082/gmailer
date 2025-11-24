@@ -7,7 +7,7 @@ using service;
 
 namespace cli;
 
-public class App(IEmailService emailService)
+public class CliApp(IEmailService emailService)
 {
     
     #region Public Methods
