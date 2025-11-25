@@ -8,12 +8,12 @@ public interface IEmailService
 {
     
     Task CacheEmailsAsync(ICacheOptions cacheOptions, IProgress<(int current, int total)>? progress = null);
+    Task ClearEmailsCache();
     Task DeleteEmailsAsync(IEnumerable<Email> emails);
     Task DeleteGroupingsAsync(IEnumerable<EmailGrouping> groupings);
-    Task<DateTime?> GetLastSyncAsync();
+    Task<SyncState?> GetSyncStateAsync();
     Task InitializeAsync();
     EmailGroupingCollection ListEmails(IMessagesOptions messagesOptions);
     Task<Label[]> ListLabelsAsync();
-    Task SetLastSyncAsync();
 
 }

@@ -81,7 +81,6 @@ public partial class MainPage
             _options.ShouldCacheEmails = false;
             _options.ShouldGetCache = true;
 
-            await _emailService.SetLastSyncAsync();
             await UpdateLastSyncLabelAsync();
         });
     }
@@ -192,8 +191,10 @@ public partial class MainPage
 
     private async Task UpdateLastSyncLabelAsync()
     {
-        var lastSync = await _emailService.GetLastSyncAsync();
-        LastSyncLabel.Text = lastSync is null ? "Last Sync: Never" : $"Last Sync: {lastSync.Value.ToLocalTime():g}";
+        SyncState? lastSync = await _emailService.GetSyncStateAsync();
+        LastSyncLabel.Text = lastSync?.LastSyncUtc is not null
+            ? $"Last Sync: {lastSync.LastSyncUtc.Value.ToLocalTime():g}"
+            : "Last Sync: Never";
     }
 
     #endregion
