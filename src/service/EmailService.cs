@@ -87,8 +87,7 @@ public class EmailService(IMongoDatabase database) : IEmailService
         EmailGroupingCollection grouping = new EmailGroupingCollection();
         if (!IsValidConnection()) return grouping;
 
-        Email[]? emails = FetchEmailsFromCache(messagesOptions.Label);
-        if (emails == null) return grouping;
+        Email[] emails = FetchEmailsFromCache(messagesOptions.Label);
         emails.DetermineDomains();
 
         var groupedEmails = emails.GroupBy(e => e.Domain).ToList();
@@ -135,6 +134,12 @@ public class EmailService(IMongoDatabase database) : IEmailService
         IList<Label> labels = response.Labels;
         labels = labels.Where(FilterEmailLabels).OrderBy(l => l.Type).ThenBy(l => l.Name).ToList();
         labels.Insert(0, new Label { Id = "ALL", Name = "ALL", Type = "system" });
+
+        if (GetNoLabelItems().Length > 0)
+        {
+            labels.Add(new Label { Id = Constants.NoLabelId, Name = "NO LABEL", Type = "user" });
+        }
+        
         return labels.ToArray();
     }
 
@@ -170,10 +175,14 @@ public class EmailService(IMongoDatabase database) : IEmailService
         return credential;
     }
 
-    private Email[]? FetchEmailsFromCache(string label)
+    private Email[] FetchEmailsFromCache(string label)
     {
-        var emails = _emailsCollection.Find(x => x.Labels.Contains(label)).ToList();
-        return emails.Count != 0 ? emails.ToArray() : null;
+        return label switch
+        {
+            "ALL" => _emailsCollection.Find(FilterDefinition<Email>.Empty).ToList().ToArray(),
+            Constants.NoLabelId => GetNoLabelItems(),
+            _ => _emailsCollection.Find(x => x.Labels != null && x.Labels.Contains(label)).ToList().ToArray()
+        };
     }
 
     private async Task<Email[]?> FetchEmailsFromServer(ICacheOptions cacheOptions, IProgress<(int current, int total)>? progress = null)
@@ -228,6 +237,11 @@ public class EmailService(IMongoDatabase database) : IEmailService
     {
         return !label.Id.StartsWith("CATEGORY_") && label.Id != "CHAT" && label.Id != "DRAFT"
                && label.Id != "IMPORTANT" && label.Id != "UNREAD" && label.Id != "STARRED" && label.Id != "YELLOW_STAR";
+    }
+
+    private Email[] GetNoLabelItems()
+    {
+        return _emailsCollection.Find(e => e.Labels == null || e.Labels.Count == 0).ToList().ToArray();
     }
 
     private async Task InsertEmailsAsync(Email[] emails)

@@ -26,12 +26,12 @@ public class Email
     #region Properties
 
     [BsonId]
-    public string Id { get; } = string.Empty;
+    public string Id { get; private set; } = string.Empty;
     public string Address { get; private set; } = string.Empty;
     public string Body { get; set; } = string.Empty;
     public string Date { get; private set; } = string.Empty;
     public string Domain { get; set; } = string.Empty;
-    public IList<string> Labels { get; } = [];
+    public IList<string>? Labels { get; private set; }
     public string Name { get; set; } = string.Empty;
     public string Sender { get; private set; } = string.Empty;
     public string Subject { get; private set; } = string.Empty;
