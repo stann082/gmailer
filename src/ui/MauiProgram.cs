@@ -1,7 +1,8 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using core;
+using Microsoft.Extensions.Logging;
+using MongoDB.Driver;
 using Serilog;
 using service;
-using StackExchange.Redis;
 
 namespace ui;
 
@@ -30,7 +31,7 @@ public static class MauiProgram
         builder.Logging.AddDebug();
 #endif
 
-        builder.Services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect("localhost"));
+        builder.Services.AddSingleton<IMongoDatabase>(_ => new MongoClient("mongodb://localhost:27017").GetDatabase(Constants.DatabaseName));
         builder.Services.AddSingleton<IEmailService, EmailService>();
         builder.Services.AddSingleton<MainPage>();
         return builder.Build();

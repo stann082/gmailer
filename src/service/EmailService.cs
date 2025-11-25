@@ -5,31 +5,95 @@ using Google.Apis.Gmail.v1;
 using Google.Apis.Gmail.v1.Data;
 using Google.Apis.Services;
 using Google.Apis.Util.Store;
-using Newtonsoft.Json;
+using MongoDB.Driver;
 using Serilog;
-using StackExchange.Redis;
 
 namespace service;
 
-public class EmailService(IConnectionMultiplexer redis) : IEmailService
+public class EmailService(IMongoDatabase database) : IEmailService
 {
-
     #region Variables
 
-    private readonly IDatabase _cache = redis.GetDatabase();
+    private IMongoCollection<Email>? _emailsCollection;
     private GmailService? _service;
+    private IMongoCollection<SyncState>? _syncState;
 
     #endregion
 
     #region Public Methods
 
-    public async Task DeleteEmailsAsync(IEnumerable<Email> emails, string key)
+    public async Task CacheEmailsAsync(ICacheOptions cacheOptions, IProgress<(int current, int total)>? progress = null)
     {
-        if (_service == null)
+        if (!IsValidConnection()) return;
+
+        if (cacheOptions.ShouldClearCache)
         {
-            Log.Error("Gmail service is not initialized");
+            await _emailsCollection!.DeleteManyAsync(FilterDefinition<Email>.Empty);
+            await _syncState!.DeleteManyAsync(FilterDefinition<SyncState>.Empty);
             return;
         }
+
+        var syncState = await GetSyncStateAsync();
+        var alreadySynced = syncState!.SyncedIds;
+
+        var messageBatches = new List<MessageBatch>();
+        await LoadMessageBatches(messageBatches, "first");
+
+        var allIds = messageBatches.SelectMany(b => b.MessageIds).ToList();
+        var unsyncedIds = allIds.Except(alreadySynced).ToList();
+
+        int currentBatch = 0;
+
+        const int batchSize = 100;
+        var chunks = unsyncedIds.Chunk(batchSize).ToList();
+
+        foreach (var chunk in chunks)
+        {
+            var emailsToInsert = new List<Email>();
+
+            currentBatch++;
+            Log.Information("\rProcessing {Current} out of {MessageBatchCount}", currentBatch, chunks.Count);
+            progress?.Report((currentBatch, chunks.Count));
+
+            foreach (var id in chunk)
+            {
+                try
+                {
+                    var request = _service!.Users.Messages.Get("me", id);
+                    request.Format = UsersResource.MessagesResource.GetRequest.FormatEnum.Full;
+
+                    var response = await request.ExecuteAsync();
+                    if (response == null)
+                    {
+                        Log.Error("Could not return email {Id}", id);
+                        continue;
+                    }
+
+                    var email = new Email(response, id, cacheOptions.DoNotIncludeBody);
+                    emailsToInsert.Add(email);
+                    syncState.SyncedIds.Add(id);
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "Error fetching email with id {Id}", id);
+                }
+            }
+
+            if (emailsToInsert.Count != 0)
+            {
+                await InsertEmailsAsync(emailsToInsert.ToArray());
+            }
+
+            await AddSyncedIdsAsync(chunk);
+        }
+
+        syncState.LastSyncUtc = DateTime.UtcNow;
+        await SaveSyncStateAsync(syncState);
+    }
+
+    public async Task DeleteEmailsAsync(IEnumerable<Email> emails)
+    {
+        if (!IsValidConnection()) return;
 
         BatchDeleteMessagesRequest messagesRequest = new BatchDeleteMessagesRequest { Ids = new List<string>() };
         string?[] emailIds = emails.Select(e => e.Id).ToArray();
@@ -42,15 +106,30 @@ public class EmailService(IConnectionMultiplexer redis) : IEmailService
                 messagesRequest.Ids.Add(id);
             }
 
-            var request = _service.Users.Messages.BatchDelete(messagesRequest, "me");
+            var request = _service!.Users.Messages.BatchDelete(messagesRequest, "me");
             await request.ExecuteAsync();
-            UpdateEmailsCache(key, emailIds);
         }
+
+        await UpdateEmailsCache(emailIds);
+        await RemoveSyncedIdsAsync(emailIds);
     }
 
-    public async Task DeleteGroupingsAsync(IEnumerable<EmailGrouping> groupings, string key)
+    public async Task DeleteGroupingsAsync(IEnumerable<EmailGrouping> groupings)
     {
-        await DeleteEmailsAsync(groupings.SelectMany(g => g.Emails), key);
+        if (!IsValidConnection()) return;
+        await DeleteEmailsAsync(groupings.SelectMany(g => g.Emails));
+    }
+
+    public async Task<SyncState?> GetSyncStateAsync()
+    {
+        if (!IsValidConnection()) return null;
+
+        var state = await _syncState.Find(x => x.Id == Constants.SyncStateId).FirstOrDefaultAsync();
+        if (state != null) return state;
+
+        state = new SyncState();
+        await _syncState!.InsertOneAsync(state);
+        return state;
     }
 
     public async Task InitializeAsync()
@@ -61,50 +140,22 @@ public class EmailService(IConnectionMultiplexer redis) : IEmailService
             HttpClientInitializer = credential,
             ApplicationName = "Gmailer"
         });
+
+        _emailsCollection = database.GetCollection<Email>("messages");
+        _syncState = database.GetCollection<SyncState>("sync_state");
     }
 
-    public Task<DateTime?> GetLastSyncAsync(string label)
-    {
-        string key = $"gmail:sync:last:{label}";
-        var raw = _cache.StringGet(key);
-        if (raw.IsNullOrEmpty)
-        {
-            return Task.FromResult<DateTime?>(null);
-        }
-
-        if (DateTime.TryParse(raw, out var dt))
-        {
-            return Task.FromResult<DateTime?>(dt);
-        }
-
-        return Task.FromResult<DateTime?>(null);
-    }
-
-    public async Task<EmailGroupingCollection> ListEmailsAsync(IMessagesOptions options, IProgress<(int current, int total)>? progress = null)
+    public EmailGroupingCollection ListEmails(IMessagesOptions messagesOptions)
     {
         EmailGroupingCollection grouping = new EmailGroupingCollection();
+        if (!IsValidConnection()) return grouping;
 
-        Email[]? emails = await RetrieveEmails(options, progress);
-        emails.DetermineDomains();
-
-        if (options.ShouldCacheEmails)
-        {
-            string key = options.GetCacheKey();
-            _cache.KeyDelete(key);
-            string emailsValue = JsonConvert.SerializeObject(emails);
-            _cache.StringSet(key, emailsValue);
-        }
-
-        if (emails == null)
-        {
-            throw new AggregateException("Could not retrieve emails");
-        }
-
+        Email[] emails = FetchEmailsFromCache(messagesOptions.Label);
         var groupedEmails = emails.GroupBy(e => e.Domain).ToList();
         var singletons = groupedEmails.Where(g => g.Count() == 1).ToList();
         var normalGroups = groupedEmails.Where(g => g.Count() > 1);
 
-        normalGroups = options.IsDescending
+        normalGroups = messagesOptions.IsDescending
             ? normalGroups.OrderByDescending(g => g.Count())
             : normalGroups.OrderBy(g => g.Count());
 
@@ -120,7 +171,7 @@ public class EmailService(IConnectionMultiplexer redis) : IEmailService
             grouping.AddGrouping(miscGroup);
         }
 
-        var resorted = options.IsDescending
+        var resorted = messagesOptions.IsDescending
             ? grouping.Groupings.OrderByDescending(g => g.Total).ToList()
             : grouping.Groupings.OrderBy(g => g.Total).ToList();
 
@@ -135,33 +186,35 @@ public class EmailService(IConnectionMultiplexer redis) : IEmailService
 
     public async Task<Label[]> ListLabelsAsync()
     {
-        if (_service == null)
-        {
-            Log.Error("Gmail service is not initialized");
-            return [];
-        }
+        if (!IsValidConnection()) return [];
 
-        var request = _service.Users.Labels.List("me");
+        var request = _service!.Users.Labels.List("me");
         var response = await request.ExecuteAsync();
         if (response?.Labels == null) throw new AggregateException("Could not return labels.");
 
         IList<Label> labels = response.Labels;
         labels = labels.Where(FilterEmailLabels).OrderBy(l => l.Type).ThenBy(l => l.Name).ToList();
         labels.Insert(0, new Label { Id = "ALL", Name = "ALL", Type = "system" });
+
+        if (GetNoLabelItems().Length > 0)
+        {
+            labels.Add(new Label { Id = Constants.NoLabelId, Name = "NO LABEL", Type = "user" });
+        }
+
         return labels.ToArray();
     }
 
-    public Task SetLastSyncAsync(string label)
-    {
-        string key = $"gmail:sync:last:{label}";
-        string value = DateTime.UtcNow.ToString("o");
-        _cache.StringSet(key, value);
-        return Task.CompletedTask;
-    }
-    
     #endregion
 
     #region Helper Methods
+
+    private async Task AddSyncedIdsAsync(IEnumerable<string> ids)
+    {
+        var update = Builders<SyncState>.Update.AddToSetEach(x => x.SyncedIds, ids);
+        await _syncState.UpdateOneAsync(
+            x => x.Id == Constants.SyncStateId,
+            update);
+    }
 
     private static async Task<UserCredential> Authenticate()
     {
@@ -173,11 +226,7 @@ public class EmailService(IConnectionMultiplexer redis) : IEmailService
         }
 
         var credential = await GoogleWebAuthorizationBroker.AuthorizeAsync(
-            new ClientSecrets
-            {
-                ClientId = clientId,
-                ClientSecret = clientSecret
-            },
+            new ClientSecrets { ClientId = clientId, ClientSecret = clientSecret },
             [GmailService.Scope.MailGoogleCom],
             "user",
             CancellationToken.None,
@@ -185,134 +234,115 @@ public class EmailService(IConnectionMultiplexer redis) : IEmailService
         return credential;
     }
 
-    private async Task<Email[]> FetchEmails(MessageBatch batch)
+    private Email[] FetchEmailsFromCache(string label)
+    {
+        return label switch
+        {
+            "ALL" => _emailsCollection.Find(FilterDefinition<Email>.Empty).ToList().ToArray(),
+            Constants.NoLabelId => GetNoLabelItems(),
+            _ => _emailsCollection.Find(x => x.Labels != null && x.Labels.Contains(label)).ToList().ToArray()
+        };
+    }
+
+    private static bool FilterEmailLabels(Label label)
+    {
+        return !label.Id.StartsWith("CATEGORY_") && label.Id != "CHAT" && label.Id != "DRAFT"
+               && label.Id != "IMPORTANT" && label.Id != "UNREAD" && label.Id != "STARRED" && label.Id != "YELLOW_STAR";
+    }
+
+    private Email[] GetNoLabelItems()
+    {
+        return _emailsCollection.Find(e => e.Labels == null || e.Labels.Count == 0).ToList().ToArray();
+    }
+
+    private async Task InsertEmailsAsync(Email[] emails)
+    {
+        foreach (var email in emails.Where(e => !string.IsNullOrWhiteSpace(e.Id)))
+        {
+            var filter = Builders<Email>.Filter.Eq(e => e.Id, email.Id);
+            await _emailsCollection!.ReplaceOneAsync(
+                filter,
+                email,
+                new ReplaceOptions { IsUpsert = true }
+            );
+        }
+    }
+
+    private bool IsValidConnection()
     {
         if (_service == null)
         {
             Log.Error("Gmail service is not initialized");
-            return [];
+            return false;
         }
 
-        List<Email> emails = new List<Email>();
-
-        foreach (var id in batch.MessageIds)
+        if (_emailsCollection == null)
         {
-            var request = _service.Users.Messages.Get("me", id);
-            var response = await request.ExecuteAsync();
-            if (response == null)
+            Log.Error("Mongo DB is not initialized");
+            return false;
+        }
+
+        return true;
+    }
+
+    private async Task LoadMessageBatches(ICollection<MessageBatch> messages, string pageToken)
+    {
+        if (!IsValidConnection()) return;
+
+        while (true)
+        {
+            if (string.IsNullOrEmpty(pageToken))
             {
-                throw new AggregateException("Could not return emails.");
+                return;
             }
 
-            Email email = new Email(response.Payload.Headers, id);
-            emails.Add(email);
-        }
+            var request = _service!.Users.Messages.List("me");
+            request.IncludeSpamTrash = false;
+            request.PageToken = pageToken != "first" ? pageToken : null;
 
-        return emails.ToArray();
+            ListMessagesResponse? response;
+            try
+            {
+                response = await request.ExecuteAsync();
+                if (response?.Messages == null)
+                {
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Error fetching messages from the Gmail server");
+                return;
+            }
+
+            messages.Add(new MessageBatch(response.Messages));
+            pageToken = response.NextPageToken;
+        }
     }
 
-    private static bool FilterEmailLabels(Label l)
+    private async Task RemoveSyncedIdsAsync(string?[] ids)
     {
-        return !l.Id.StartsWith("CATEGORY_") && l.Id != "CHAT" && l.Id != "DRAFT" 
-               && l.Id != "IMPORTANT" && l.Id != "UNREAD" && l.Id != "STARRED" && l.Id != "YELLOW_STAR";
+        if (ids.Length == 0) return;
+        if (!IsValidConnection()) return;
+
+        var filter = Builders<SyncState>.Filter.Eq(s => s.Id, Constants.SyncStateId);
+        var update = Builders<SyncState>.Update.PullAll(s => s.SyncedIds, ids);
+        await _syncState!.UpdateOneAsync(filter, update);
+    }
+    
+    private async Task SaveSyncStateAsync(SyncState state)
+    {
+        await _syncState.ReplaceOneAsync(
+            x => x.Id == Constants.SyncStateId,
+            state,
+            new ReplaceOptions { IsUpsert = true });
     }
 
-    private Email[]? GetCachedEmails(string key)
+    private async Task UpdateEmailsCache(string?[] emailIds)
     {
-        string? storedEmailsJson = _cache.StringGet(key);
-        return storedEmailsJson != null ? JsonConvert.DeserializeObject<List<Email>>(storedEmailsJson)?.ToArray() : [];
-    }
-
-    private async Task LoadMessages(ICollection<MessageBatch> messages, string pageToken, IMessagesOptions options)
-    {
-        if (_service == null)
-        {
-            Log.Error("Gmail service is not initialized");
-            return;
-        }
-
-        if (string.IsNullOrEmpty(pageToken))
-        {
-            return;
-        }
-
-        var request = _service.Users.Messages.List("me");
-        if (options.Label != "ALL")
-        {
-            request.LabelIds = options.Label;
-        }
-
-        request.IncludeSpamTrash = false;
-
-        if (options.Recent > 0)
-        {
-            request.MaxResults = options.Recent;
-        }
-        else if (options.ResultsPePage > 0)
-        {
-            request.MaxResults = options.ResultsPePage;
-        }
-        else
-        {
-            request.MaxResults = 100;
-        }
-
-        request.PageToken = pageToken != "first" ? pageToken : null;
-
-        if (options.Unread)
-        {
-            request.Q = "is:unread";
-        }
-
-        var response = await request.ExecuteAsync();
-        if (response?.Messages == null)
-        {
-            throw new AggregateException("Could not return messages.");
-        }
-
-        messages.Add(new MessageBatch(response.Messages));
-        if (options.Recent > 0)
-        {
-            return;
-        }
-
-        await LoadMessages(messages, response.NextPageToken, options);
-    }
-
-    private async Task<Email[]?> RetrieveEmails(IMessagesOptions options, IProgress<(int current, int total)>? progress = null)
-    {
-        if (options.ShouldGetCache) return GetCachedEmails(options.GetCacheKey());
-
-        var messageBatches = new List<MessageBatch>();
-        await LoadMessages(messageBatches, "first", options);
-
-        var emails = new List<Email>();
-        int total = messageBatches.Count;
-        int current = 0;
-
-        progress?.Report((0, total));
-        foreach (var batch in messageBatches)
-        {
-            current++;
-            Log.Information("\rProcessing {Current} out of {MessageBatchCount}", current, messageBatches.Count);
-            progress?.Report((current, total));
-            emails.AddRange(await FetchEmails(batch));
-        }
-
-        return emails.ToArray();
-    }
-
-    private void UpdateEmailsCache(string key, string?[] emailIds)
-    {
-        Email[]? cachedEmails = GetCachedEmails(key);
-        if (cachedEmails == null)
-        {
-            return;
-        }
-
-        List<Email> newEmails = cachedEmails.Where(e => !emailIds.Contains(e.Id)).ToList();
-        string emailsValue = JsonConvert.SerializeObject(newEmails);
-        _cache.StringSet(key, emailsValue);
+        if (emailIds.Length == 0) return;
+        var filter = Builders<Email>.Filter.And(Builders<Email>.Filter.In(e => e.Id, emailIds));
+        await _emailsCollection!.DeleteManyAsync(filter);
     }
 
     #endregion
