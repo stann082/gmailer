@@ -9,6 +9,11 @@
             <DataTemplate x:DataType="core:Email"
                           xmlns:models="clr-namespace:ui.Models">
                 <HorizontalStackLayout Spacing="8" Padding="8,4" VerticalOptions="Center">
+                    <HorizontalStackLayout.GestureRecognizers>
+                        <TapGestureRecognizer NumberOfTapsRequired="2"
+                                              Tapped="OnEmailDoubleTapped"
+                                              CommandParameter="{Binding .}" />
+                    </HorizontalStackLayout.GestureRecognizers>
                     <Label Text="{Binding Date}" FontAttributes="Bold" WidthRequest="130" />
                     <Label Text="{Binding Address}" TextColor="Gray" MaxLines="1" />
                     <Label Text="{Binding Subject}"
