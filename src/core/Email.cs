@@ -6,7 +6,6 @@ namespace core;
 
 public class Email
 {
-
     #region Constructors
 
     public Email()
@@ -27,10 +26,11 @@ public class Email
 
     [BsonId]
     public string Id { get; private set; } = string.Empty;
+
     public string Address { get; private set; } = string.Empty;
     public string Body { get; set; } = string.Empty;
     public string Date { get; private set; } = string.Empty;
-    public string Domain { get; set; } = string.Empty;
+    public string Domain { get; private set; } = string.Empty;
     public IList<string>? Labels { get; private set; }
     public string Name { get; set; } = string.Empty;
     public string Sender { get; private set; } = string.Empty;
@@ -46,13 +46,13 @@ public class Email
         switch (base64.Length % 4)
         {
             case 2: base64 += "=="; break;
-            case 3: base64 += "=";  break;
+            case 3: base64 += "="; break;
         }
 
         var bytes = Convert.FromBase64String(base64);
         return Encoding.UTF8.GetString(bytes);
     }
-    
+
     private static string GetBodyFromParts(IList<MessagePart>? parts)
     {
         if (parts == null)
@@ -75,26 +75,26 @@ public class Email
             {
                 continue;
             }
-            
+
             var result = GetBodyFromParts(part.Parts);
             if (string.IsNullOrEmpty(result))
             {
                 continue;
             }
-            
+
             return result;
         }
 
         return string.Empty;
     }
-    
+
     private void Initialize(MessagePart payload, bool doNotIncludeBody)
     {
         if (!doNotIncludeBody)
         {
             Body = GetBodyFromParts(payload.Parts);
         }
-        
+
         foreach (var header in payload.Headers)
         {
             switch (header.Name)
@@ -111,6 +111,27 @@ public class Email
                     break;
             }
         }
+        
+        SetDomain();
+    }
+
+    private void SetDomain()
+    {
+        if (string.IsNullOrEmpty(Sender))
+        {
+            return;
+        }
+
+        if (!Sender.Contains('@'))
+        {
+            Domain = Sender;
+            return;
+        }
+
+        string[] recipientSplit = Sender.Split('@');
+        string[]? domainParts = recipientSplit.LastOrDefault()?.Split('.');
+        string? lastTwoParts = domainParts?.Length >= 2 ? string.Join('.', domainParts, domainParts.Length - 2, 2) : recipientSplit.LastOrDefault();
+        Domain = lastTwoParts?.Trim('<', '>');
     }
 
     private void SetSenderProperties(string sender)
@@ -134,5 +155,4 @@ public class Email
     }
 
     #endregion
-
 }

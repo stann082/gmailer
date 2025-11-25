@@ -10,4 +10,7 @@ public class CacheOptions : ICacheOptions
     [Option("no-body", HelpText = "Do not include email body during caching.")]
     public bool DoNotIncludeBody { get; set; }
 
+    [Option("clear", HelpText = "Clear local emails cache")]
+    public bool ShouldClearCache { get; set; }
+
 }

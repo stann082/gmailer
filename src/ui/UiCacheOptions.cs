@@ -5,4 +5,5 @@ namespace ui;
 public class UiCacheOptions : ICacheOptions
 {
     public bool DoNotIncludeBody { get; }
+    public bool ShouldClearCache { get; }
 }

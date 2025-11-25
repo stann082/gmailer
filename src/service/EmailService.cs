@@ -26,17 +26,22 @@ public class EmailService(IMongoDatabase database) : IEmailService
     {
         if (!IsValidConnection()) return;
 
+        if (cacheOptions.ShouldClearCache)
+        {
+            await _emailsCollection!.DeleteManyAsync(FilterDefinition<Email>.Empty);
+        }
+
         var syncState = await GetSyncStateAsync();
         var alreadySynced = syncState!.SyncedIds;
 
         var messageBatches = new List<MessageBatch>();
-        await LoadMessages(messageBatches, "first");
+        await LoadMessageBatches(messageBatches, "first");
 
         var allIds = messageBatches.SelectMany(b => b.MessageIds).ToList();
         var unsyncedIds = allIds.Except(alreadySynced).ToList();
 
         int total = unsyncedIds.Count;
-        int current = 0;
+        int currentBatch = 0;
 
         progress?.Report((0, total));
 
@@ -46,6 +51,10 @@ public class EmailService(IMongoDatabase database) : IEmailService
         foreach (var chunk in chunks)
         {
             var emailsToInsert = new List<Email>();
+
+            currentBatch++;
+            Log.Information("\rProcessing {Current} out of {MessageBatchCount}", currentBatch, chunks.Count);
+            progress?.Report((currentBatch, total));
 
             foreach (var id in chunk)
             {
@@ -63,12 +72,7 @@ public class EmailService(IMongoDatabase database) : IEmailService
 
                     var email = new Email(response, id, cacheOptions.DoNotIncludeBody);
                     emailsToInsert.Add(email);
-                    emailsToInsert.DetermineDomains();
-
-                    Log.Information("\rProcessing {Current} out of {MessageBatchCount}", current, messageBatches.Count);
-                    
-                    current++;
-                    progress?.Report((current, total));
+                    syncState.SyncedIds.Add(id);
                 }
                 catch (Exception ex)
                 {
@@ -84,15 +88,9 @@ public class EmailService(IMongoDatabase database) : IEmailService
             await AddSyncedIdsAsync(chunk);
         }
 
+        syncState.LastSyncUtc = DateTime.UtcNow;
         await SaveSyncStateAsync(syncState);
     }
-
-    public async Task ClearEmailsCache()
-    {
-        if (!IsValidConnection()) return;
-        await _emailsCollection!.DeleteManyAsync(FilterDefinition<Email>.Empty);
-    }
-
 
     public async Task DeleteEmailsAsync(IEnumerable<Email> emails)
     {
@@ -153,8 +151,6 @@ public class EmailService(IMongoDatabase database) : IEmailService
         if (!IsValidConnection()) return grouping;
 
         Email[] emails = FetchEmailsFromCache(messagesOptions.Label);
-        emails.DetermineDomains();
-
         var groupedEmails = emails.GroupBy(e => e.Domain).ToList();
         var singletons = groupedEmails.Where(g => g.Count() == 1).ToList();
         var normalGroups = groupedEmails.Where(g => g.Count() > 1);
@@ -216,7 +212,7 @@ public class EmailService(IMongoDatabase database) : IEmailService
     {
         var update = Builders<SyncState>.Update.AddToSetEach(x => x.SyncedIds, ids);
         await _syncState.UpdateOneAsync(
-            x => x.Id == "global",
+            x => x.Id == Constants.SyncStateId,
             update);
     }
 
@@ -289,7 +285,7 @@ public class EmailService(IMongoDatabase database) : IEmailService
         return true;
     }
 
-    private async Task LoadMessages(ICollection<MessageBatch> messages, string pageToken)
+    private async Task LoadMessageBatches(ICollection<MessageBatch> messages, string pageToken)
     {
         if (!IsValidConnection()) return;
 
