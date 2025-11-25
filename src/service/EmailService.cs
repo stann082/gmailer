@@ -29,6 +29,8 @@ public class EmailService(IMongoDatabase database) : IEmailService
         if (cacheOptions.ShouldClearCache)
         {
             await _emailsCollection!.DeleteManyAsync(FilterDefinition<Email>.Empty);
+            await _syncState!.DeleteManyAsync(FilterDefinition<SyncState>.Empty);
+            return;
         }
 
         var syncState = await GetSyncStateAsync();
@@ -40,10 +42,7 @@ public class EmailService(IMongoDatabase database) : IEmailService
         var allIds = messageBatches.SelectMany(b => b.MessageIds).ToList();
         var unsyncedIds = allIds.Except(alreadySynced).ToList();
 
-        int total = unsyncedIds.Count;
         int currentBatch = 0;
-
-        progress?.Report((0, total));
 
         const int batchSize = 100;
         var chunks = unsyncedIds.Chunk(batchSize).ToList();
@@ -54,7 +53,7 @@ public class EmailService(IMongoDatabase database) : IEmailService
 
             currentBatch++;
             Log.Information("\rProcessing {Current} out of {MessageBatchCount}", currentBatch, chunks.Count);
-            progress?.Report((currentBatch, total));
+            progress?.Report((currentBatch, chunks.Count));
 
             foreach (var id in chunk)
             {
@@ -112,6 +111,7 @@ public class EmailService(IMongoDatabase database) : IEmailService
         }
 
         await UpdateEmailsCache(emailIds);
+        await RemoveSyncedIdsAsync(emailIds);
     }
 
     public async Task DeleteGroupingsAsync(IEnumerable<EmailGrouping> groupings)
@@ -320,6 +320,16 @@ public class EmailService(IMongoDatabase database) : IEmailService
         }
     }
 
+    private async Task RemoveSyncedIdsAsync(string?[] ids)
+    {
+        if (ids.Length == 0) return;
+        if (!IsValidConnection()) return;
+
+        var filter = Builders<SyncState>.Filter.Eq(s => s.Id, Constants.SyncStateId);
+        var update = Builders<SyncState>.Update.PullAll(s => s.SyncedIds, ids);
+        await _syncState!.UpdateOneAsync(filter, update);
+    }
+    
     private async Task SaveSyncStateAsync(SyncState state)
     {
         await _syncState.ReplaceOneAsync(
