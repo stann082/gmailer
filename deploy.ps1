@@ -27,7 +27,7 @@ if ($ui) {
 
     $localApp = "$env:LOCALAPPDATA\Gmailer"
     Remove-Item $localApp -Recurse -ErrorAction SilentlyContinue
-    dotnet publish .\src\ui\ui.csproj -f net9.0-windows10.0.19041.0 -c Release -o $localApp -v quiet
+    dotnet publish .\src\ui\ui.csproj -f net10.0-windows10.0.19041.0 -c Release -o $localApp -v quiet
 
     $desktop = [Environment]::GetFolderPath('Desktop')
     $shortcutPath = Join-Path $desktop 'Gmailer.lnk'
