@@ -55,7 +55,7 @@ public partial class MainPage
 
             _options.Label = selectedKey.Id;
             await UpdateLastSyncLabelAsync();
-            await LoadGroupsAsync();
+            LoadEmailGroups();
         });
     }
 
@@ -63,25 +63,24 @@ public partial class MainPage
     {
         await InvokeSafelyAsync(async () =>
         {
-            if (LabelPicker.SelectedItem is not Label selectedLabel)
+            if (LabelPicker.SelectedItem is not Label)
             {
                 return;
             }
 
-            _options.Label = selectedLabel.Id;
             _options.ShouldCacheEmails = true;
             _options.ShouldGetCache = false;
 
             await RunBatchTaskAsync(async progress =>
             {
-                var grouping = await _emailService.ListEmailsAsync(_options, progress);
+                await _emailService.CacheEmailsAsync(new UiCacheOptions(), progress);
+                var grouping = _emailService.ListEmails(_options);
                 await MainThread.InvokeOnMainThreadAsync(() => { GroupPanel.SetItemsSource(grouping.Groupings); });
             }, "Syncing batch");
 
             _options.ShouldCacheEmails = false;
             _options.ShouldGetCache = true;
 
-            await _emailService.SetLastSyncAsync(_options.Label);
             await UpdateLastSyncLabelAsync();
         });
     }
@@ -92,10 +91,9 @@ public partial class MainPage
         {
             Email[] selectedEmails = EmailPanel.GetSelectedEmails();
 
-            string key = _options.GetCacheKey();
             if (selectedEmails.Length > 0)
             {
-                await _emailService.DeleteEmailsAsync(selectedEmails, key);
+                await _emailService.DeleteEmailsAsync(selectedEmails);
                 if (GroupPanel.CurrentSelection is not { } currentGroup) return;
                 foreach (var email in selectedEmails)
                 {
@@ -104,7 +102,7 @@ public partial class MainPage
             }
             else if (GroupPanel.CurrentSelection is { } group)
             {
-                await _emailService.DeleteGroupingsAsync([group], key);
+                await _emailService.DeleteGroupingsAsync([group]);
                 if (GroupPanel.ItemsSource is { } groups)
                 {
                     groups.Remove(group);
@@ -164,12 +162,10 @@ public partial class MainPage
         }
     }
 
-    private void SetUiEnabled(bool enabled)
+    private void LoadEmailGroups()
     {
-        SyncBtn.IsEnabled = enabled;
-        DeleteBtn.IsEnabled = enabled;
-        GroupPanel.IsEnabled = enabled;
-        EmailPanel.IsEnabled = enabled;
+        EmailGroupingCollection grouping = _emailService.ListEmails(_options);
+        GroupPanel.SetItemsSource(grouping.Groupings);
     }
 
     private async Task LoadLabelsAsync()
@@ -185,16 +181,20 @@ public partial class MainPage
         }, "Error loading labels");
     }
 
-    private async Task LoadGroupsAsync()
+    private void SetUiEnabled(bool enabled)
     {
-        EmailGroupingCollection grouping = await _emailService.ListEmailsAsync(_options);
-        GroupPanel.SetItemsSource(grouping.Groupings);
+        SyncBtn.IsEnabled = enabled;
+        DeleteBtn.IsEnabled = enabled;
+        GroupPanel.IsEnabled = enabled;
+        EmailPanel.IsEnabled = enabled;
     }
 
     private async Task UpdateLastSyncLabelAsync()
     {
-        var lastSync = await _emailService.GetLastSyncAsync(_options.Label);
-        LastSyncLabel.Text = lastSync is null ? "Last Sync: Never" : $"Last Sync: {lastSync.Value.ToLocalTime():g}";
+        SyncState? lastSync = await _emailService.GetSyncStateAsync();
+        LastSyncLabel.Text = lastSync?.LastSyncUtc is not null
+            ? $"Last Sync: {lastSync.LastSyncUtc.Value.ToLocalTime():g}"
+            : "Last Sync: Never";
     }
 
     #endregion

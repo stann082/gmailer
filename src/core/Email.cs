@@ -1,10 +1,11 @@
-﻿using Google.Apis.Gmail.v1.Data;
+﻿using System.Text;
+using Google.Apis.Gmail.v1.Data;
+using MongoDB.Bson.Serialization.Attributes;
 
 namespace core;
 
 public class Email
 {
-
     #region Constructors
 
     public Email()
@@ -12,41 +13,89 @@ public class Email
         // for json deserialization
     }
 
-    public Email(IEnumerable<MessagePartHeader> headers, string id)
+    public Email(Message message, string id, bool doNotIncludeBody)
     {
         Id = id;
-        Initialize(headers);
+        Labels = message.LabelIds;
+        Initialize(message.Payload, doNotIncludeBody);
     }
 
     #endregion
 
     #region Properties
 
-    public string? Address { get; set; }
-    public string? Date { get; set; }
-    public string? Domain { get; set; }
+    [BsonId]
+    public string Id { get; private set; } = string.Empty;
 
-    public string? Id { get; set; }
-    public string? Name { get; set; }
-    public string? Sender { get; set; }
-    public string? Subject { get; set; }
-
-    #endregion
-
-    #region Public Methods
-
-    public DateTime ToDateTime()
-    {
-        return DateTime.TryParse(Date, out var result) ? result : DateTime.MinValue;
-    }
+    public string Address { get; private set; } = string.Empty;
+    public string Body { get; set; } = string.Empty;
+    public string Date { get; private set; } = string.Empty;
+    public string Domain { get; private set; } = string.Empty;
+    public IList<string>? Labels { get; private set; }
+    public string Name { get; set; } = string.Empty;
+    public string Sender { get; private set; } = string.Empty;
+    public string Subject { get; private set; } = string.Empty;
 
     #endregion
-    
+
     #region Helper Methods
 
-    private void Initialize(IEnumerable<MessagePartHeader> headers)
+    private static string DecodeBase64Url(string input)
     {
-        foreach (var header in headers)
+        string base64 = input.Replace('-', '+').Replace('_', '/');
+        switch (base64.Length % 4)
+        {
+            case 2: base64 += "=="; break;
+            case 3: base64 += "="; break;
+        }
+
+        var bytes = Convert.FromBase64String(base64);
+        return Encoding.UTF8.GetString(bytes);
+    }
+
+    private static string GetBodyFromParts(IList<MessagePart>? parts)
+    {
+        if (parts == null)
+        {
+            return string.Empty;
+        }
+
+        foreach (var part in parts)
+        {
+            switch (part)
+            {
+                case { MimeType: "text/html", Body: not null } when !string.IsNullOrEmpty(part.Body.Data):
+                case { MimeType: "text/plain", Body: not null } when !string.IsNullOrEmpty(part.Body.Data):
+                {
+                    return DecodeBase64Url(part.Body.Data);
+                }
+            }
+
+            if (part.Parts is not { Count: > 0 })
+            {
+                continue;
+            }
+
+            var result = GetBodyFromParts(part.Parts);
+            if (string.IsNullOrEmpty(result))
+            {
+                continue;
+            }
+
+            return result;
+        }
+
+        return string.Empty;
+    }
+
+    private void Initialize(MessagePart payload, bool doNotIncludeBody)
+    {
+        if (!doNotIncludeBody)
+        {
+            Body = GetBodyFromParts(payload.Parts);
+        }
+
+        foreach (var header in payload.Headers)
         {
             switch (header.Name)
             {
@@ -62,6 +111,27 @@ public class Email
                     break;
             }
         }
+        
+        SetDomain();
+    }
+
+    private void SetDomain()
+    {
+        if (string.IsNullOrEmpty(Sender))
+        {
+            return;
+        }
+
+        if (!Sender.Contains('@'))
+        {
+            Domain = Sender;
+            return;
+        }
+
+        string[] recipientSplit = Sender.Split('@');
+        string[]? domainParts = recipientSplit.LastOrDefault()?.Split('.');
+        string? lastTwoParts = domainParts?.Length >= 2 ? string.Join('.', domainParts, domainParts.Length - 2, 2) : recipientSplit.LastOrDefault();
+        Domain = lastTwoParts?.Trim('<', '>');
     }
 
     private void SetSenderProperties(string sender)
@@ -85,5 +155,4 @@ public class Email
     }
 
     #endregion
-
 }

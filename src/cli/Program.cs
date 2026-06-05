@@ -1,6 +1,8 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using core;
+using Microsoft.Extensions.DependencyInjection;
+using MongoDB.Driver;
+using Serilog;
 using service;
-using StackExchange.Redis;
 
 namespace cli;
 
@@ -11,13 +13,17 @@ public static class Program
 
     public static async Task<int> Main(string[] args)
     {
-        var multiplexer = await ConnectionMultiplexer.ConnectAsync("localhost");
+        Log.Logger = new LoggerConfiguration()
+            .MinimumLevel.Debug()
+            .WriteTo.Console()
+            .CreateLogger();
+
         var services = new ServiceCollection()
-            .AddSingleton<App>()
-            .AddSingleton<IConnectionMultiplexer>(multiplexer)
+            .AddSingleton<CliApp>()
+            .AddSingleton<IMongoDatabase>(_ => new MongoClient("mongodb://localhost:27017").GetDatabase(Constants.DatabaseName))
             .AddSingleton<IEmailService, EmailService>()
             .BuildServiceProvider();
-        return await services.GetService<App>()!.RunApp(args);
+        return await services.GetService<CliApp>()!.RunApp(args);
     }
 
     #endregion

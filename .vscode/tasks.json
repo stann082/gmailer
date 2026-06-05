@@ -1,0 +1,72 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build UI",
+            "command": "dotnet",
+            "type": "shell",
+            "args": [
+                "build",
+                "src/ui/ui.csproj",
+                "-c",
+                "Debug"
+            ],
+            "problemMatcher": "$msCompile",
+            "group": "build"
+        },
+        {
+            "label": "run UI (net9.0)",
+            "command": "dotnet",
+            "type": "shell",
+            "args": [
+                "run",
+                "-p",
+                "src/ui/ui.csproj",
+                "-c",
+                "Debug"
+            ],
+            "problemMatcher": "$msCompile",
+            "group": {
+                "kind": "test",
+                "isDefault": false
+            },
+            "dependsOn": "build UI"
+        },
+        {
+            "label": "run UI (net10.0)",
+            "command": "dotnet",
+            "type": "shell",
+            "args": [
+                "run",
+                "-p",
+                "src/ui/ui.csproj",
+                "-c",
+                "Debug"
+            ],
+            "problemMatcher": "$msCompile",
+            "group": {
+                "kind": "test",
+                "isDefault": false
+            },
+            "dependsOn": "build UI"
+        },
+        {
+            "label": "launch UI",
+            "command": "dotnet",
+            "type": "shell",
+            "args": [
+                "run",
+                "-p",
+                "src/ui/ui.csproj",
+                "-c",
+                "Debug"
+            ],
+            "problemMatcher": "$msCompile",
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            },
+            "dependsOn": "build UI"
+        }
+    ]
+}

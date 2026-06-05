@@ -3,17 +3,7 @@
 public interface IMessagesOptions
 {
     
-    // attributes
     bool IsDescending { get; }
     string Label { get; }
-    int ResultsPePage { get; }
-    int Recent { get; }
-    bool ShouldCacheEmails { get; }
-    bool ShouldGetCache { get; }
-    bool ShouldGroup { get; }
-    bool Unread { get; }
-    
-    // behavior
-    string GetCacheKey();
 
 }
