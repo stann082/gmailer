@@ -1,0 +1,29 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage x:Class="ui.Views.EmailDetailPage"
+             xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:core="clr-namespace:core;assembly=core"
+             Title="Email Details">
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="12">
+            <Label Text="{Binding Subject}"
+                   FontSize="22"
+                   FontAttributes="Bold"
+                   LineBreakMode="WordWrap" />
+            <Label Text="{Binding Sender}"
+                   TextColor="Gray"
+                   FontSize="14"
+                   LineBreakMode="TailTruncation" />
+            <Label Text="{Binding Date}"
+                   TextColor="Gray"
+                   FontSize="12" />
+            <Frame BackgroundColor="{AppThemeBinding Light=#F6F6F6, Dark=#1E1E1E}"
+                   BorderColor="{AppThemeBinding Light=#DDDDDD, Dark=#444444}"
+                   Padding="12"
+                   CornerRadius="8">
+                <Label Text="{Binding Body}"
+                       LineBreakMode="WordWrap" />
+            </Frame>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>
