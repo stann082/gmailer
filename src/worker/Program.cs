@@ -8,7 +8,7 @@ Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
     .WriteTo.Console()
     .WriteTo.File(
-        Path.Combine(AppContext.BaseDirectory, "logs", "sync-.log"),
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Gmailer", "logs", "sync-.log"),
         rollingInterval: RollingInterval.Day,
         retainedFileCountLimit: 30)
     .CreateLogger();
