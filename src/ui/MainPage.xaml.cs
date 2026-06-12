@@ -54,6 +54,7 @@ public partial class MainPage
             }
 
             _options.Label = selectedKey.Id;
+            UpdateArchiveButtonState();
             await UpdateLastSyncLabelAsync();
             LoadEmailGroups();
         });
@@ -82,6 +83,34 @@ public partial class MainPage
             _options.ShouldGetCache = true;
 
             await UpdateLastSyncLabelAsync();
+        });
+    }
+
+    private async void OnArchiveClicked(object sender, EventArgs e)
+    {
+        await InvokeSafelyAsync(async () =>
+        {
+            Email[] selectedEmails = EmailPanel.GetSelectedEmails();
+
+            if (selectedEmails.Length > 0)
+            {
+                await _emailService.ArchiveEmailsAsync(selectedEmails);
+                if (GroupPanel.CurrentSelection is not { } currentGroup) return;
+                foreach (var email in selectedEmails)
+                {
+                    currentGroup.Emails.Remove(email);
+                }
+            }
+            else if (GroupPanel.CurrentSelection is { } group)
+            {
+                await _emailService.ArchiveGroupingsAsync([group]);
+                if (GroupPanel.ItemsSource is { } groups)
+                {
+                    groups.Remove(group);
+                }
+
+                EmailPanel.SetItemsSource([]);
+            }
         });
     }
 
@@ -185,8 +214,19 @@ public partial class MainPage
     {
         SyncBtn.IsEnabled = enabled;
         DeleteBtn.IsEnabled = enabled;
+        ArchiveBtn.IsEnabled = enabled;
         GroupPanel.IsEnabled = enabled;
         EmailPanel.IsEnabled = enabled;
+
+        if (enabled)
+        {
+            UpdateArchiveButtonState();
+        }
+    }
+
+    private void UpdateArchiveButtonState()
+    {
+        ArchiveBtn.IsEnabled = LabelPicker.SelectedItem is Label { Id: not "ALL" };
     }
 
     private async Task UpdateLastSyncLabelAsync()

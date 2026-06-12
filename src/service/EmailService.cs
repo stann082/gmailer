@@ -120,6 +120,32 @@ public class EmailService(IMongoDatabase database) : IEmailService
         await DeleteEmailsAsync(groupings.SelectMany(g => g.Emails));
     }
 
+    public async Task ArchiveEmailsAsync(IEnumerable<Email> emails)
+    {
+        if (!IsValidConnection()) return;
+
+        string?[] emailIds = emails.Select(e => e.Id).ToArray();
+        var modifyRequest = new BatchModifyMessagesRequest
+        {
+            RemoveLabelIds = new List<string> { "INBOX" }
+        };
+
+        foreach (var idBatch in emailIds.Batch(1000))
+        {
+            modifyRequest.Ids = idBatch.Where(id => id != null).Cast<string>().ToList();
+            var request = _service!.Users.Messages.BatchModify(modifyRequest, "me");
+            await request.ExecuteAsync();
+        }
+
+        await UpdateArchivedEmailsCache(emailIds);
+    }
+
+    public async Task ArchiveGroupingsAsync(IEnumerable<EmailGrouping> groupings)
+    {
+        if (!IsValidConnection()) return;
+        await ArchiveEmailsAsync(groupings.SelectMany(g => g.Emails));
+    }
+
     public async Task<SyncState?> GetSyncStateAsync()
     {
         if (!IsValidConnection()) return null;
@@ -343,6 +369,15 @@ public class EmailService(IMongoDatabase database) : IEmailService
         if (emailIds.Length == 0) return;
         var filter = Builders<Email>.Filter.And(Builders<Email>.Filter.In(e => e.Id, emailIds));
         await _emailsCollection!.DeleteManyAsync(filter);
+    }
+
+    private async Task UpdateArchivedEmailsCache(string?[] emailIds)
+    {
+        if (emailIds.Length == 0) return;
+        var nonNullIds = emailIds.Where(id => id != null).Cast<string>().ToList();
+        var filter = Builders<Email>.Filter.In(e => e.Id, nonNullIds);
+        var update = Builders<Email>.Update.Pull(e => e.Labels, "INBOX");
+        await _emailsCollection!.UpdateManyAsync(filter, update);
     }
 
     #endregion
