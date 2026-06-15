@@ -95,6 +95,11 @@ public partial class MainPage
             if (selectedEmails.Length > 0)
             {
                 await _emailService.ArchiveEmailsAsync(selectedEmails);
+                if (ListOnlyCheckBox.IsChecked)
+                {
+                    LoadEmailGroups();
+                    return;
+                }
                 if (GroupPanel.CurrentSelection is not { } currentGroup) return;
                 foreach (var email in selectedEmails)
                 {
@@ -123,6 +128,11 @@ public partial class MainPage
             if (selectedEmails.Length > 0)
             {
                 await _emailService.DeleteEmailsAsync(selectedEmails);
+                if (ListOnlyCheckBox.IsChecked)
+                {
+                    LoadEmailGroups();
+                    return;
+                }
                 if (GroupPanel.CurrentSelection is not { } currentGroup) return;
                 foreach (var email in selectedEmails)
                 {
@@ -144,7 +154,17 @@ public partial class MainPage
 
     private void OnGroupSelected(object? sender, EmailGrouping group)
     {
-        EmailPanel.SetItemsSource(group.Emails);
+        var sorted = group.Emails.OrderByDescending(e =>
+            DateTimeOffset.TryParse(e.Date, out var dt) ? dt : DateTimeOffset.MinValue);
+        EmailPanel.SetItemsSource(sorted);
+    }
+
+    private void OnListOnlyChanged(object sender, CheckedChangedEventArgs e)
+    {
+        bool listOnly = e.Value;
+        GroupPanel.IsVisible = !listOnly;
+        MainGrid.ColumnDefinitions[0].Width = listOnly ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
+        LoadEmailGroups();
     }
 
     #endregion
@@ -194,7 +214,17 @@ public partial class MainPage
     private void LoadEmailGroups()
     {
         EmailGroupingCollection grouping = _emailService.ListEmails(_options);
-        GroupPanel.SetItemsSource(grouping.Groupings);
+        if (ListOnlyCheckBox.IsChecked)
+        {
+            var allEmails = grouping.Groupings.SelectMany(g => g.Emails)
+                .OrderByDescending(e => DateTimeOffset.TryParse(e.Date, out var dt) ? dt : DateTimeOffset.MinValue);
+            EmailPanel.SetItemsSource(allEmails);
+        }
+        else
+        {
+            GroupPanel.SetItemsSource(grouping.Groupings);
+            EmailPanel.SetItemsSource([]);
+        }
     }
 
     private async Task LoadLabelsAsync()
@@ -205,7 +235,8 @@ public partial class MainPage
             LabelPicker.ItemsSource = labels.ToList();
             if (labels.Length != 0)
             {
-                LabelPicker.SelectedIndex = 0;
+                int inboxIndex = Array.FindIndex(labels, l => l.Id == "INBOX");
+                LabelPicker.SelectedIndex = inboxIndex >= 0 ? inboxIndex : 0;
             }
         }, "Error loading labels");
     }
