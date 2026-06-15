@@ -179,7 +179,7 @@ public partial class MainPage
         }
         catch (Exception ex)
         {
-            await DisplayAlert(errorTitle, ex.Message, "OK");
+            await DisplayAlertAsync(errorTitle, ex.Message, "OK");
         }
     }
 
@@ -202,7 +202,7 @@ public partial class MainPage
         }
         catch (Exception ex)
         {
-            await DisplayAlert("Error", ex.Message, "OK");
+            await DisplayAlertAsync("Error", ex.Message, "OK");
         }
         finally
         {

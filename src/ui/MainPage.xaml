@@ -1,6 +1,7 @@
 ﻿<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:views="clr-namespace:ui.Views"
+             xmlns:gmail="clr-namespace:Google.Apis.Gmail.v1.Data;assembly=Google.Apis.Gmail.v1"
              x:Class="ui.MainPage"
              Title="Gmailer">
 
@@ -24,6 +25,7 @@
                                      Spacing="4"
                                      Margin="0,0,20,0">
                     <Picker x:Name="LabelPicker"
+                            x:DataType="gmail:Label"
                             Title="Select Label"
                             WidthRequest="200"
                             ItemDisplayBinding="{Binding Name}"
